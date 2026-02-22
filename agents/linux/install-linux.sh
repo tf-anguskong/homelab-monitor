@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 # install-linux.sh — Install and configure Telegraf power monitoring agent
-# Usage: sudo ./install-linux.sh --server http://INFLUXDB_HOST:8086 --token YOUR_WRITE_TOKEN [--role NAME]
+# Usage: sudo ./install-linux.sh --server http://INFLUXDB_HOST:8086 --token YOUR_WRITE_TOKEN [--role NAME] [--deb]
 # Must be run as root.
+#
+# Flags:
+#   --server URL   InfluxDB server URL (required)
+#   --token TOKEN  InfluxDB write token (required)
+#   --role NAME    Role tag written to InfluxDB (default: agent)
+#   --deb          Install via direct .deb download instead of adding apt/yum repo.
+#                  Use this on Proxmox or any system with restricted/custom repos.
 
 set -euo pipefail
 
@@ -11,13 +18,19 @@ SCRIPTS_SRC="$SCRIPT_DIR/scripts"
 TELEGRAF_CONF_DEST="/etc/telegraf/telegraf.conf"
 SCRIPTS_DEST="/etc/telegraf/scripts"
 
+TELEGRAF_DEB_VERSION="1.29.5"
+TELEGRAF_DEB_URL="https://dl.influxdata.com/telegraf/releases/telegraf_${TELEGRAF_DEB_VERSION}-1_amd64.deb"
+
 SERVER_URL=""
 WRITE_TOKEN=""
 ROLE="agent"
+USE_DEB=false
 
 # ── Parse arguments ────────────────────────────────────────────────────────────
 usage() {
-    echo "Usage: sudo $0 --server http://HOST:8086 --token TOKEN [--role ROLE]"
+    echo "Usage: sudo $0 --server http://HOST:8086 --token TOKEN [--role ROLE] [--deb]"
+    echo ""
+    echo "  --deb   Install Telegraf via direct .deb download (use on Proxmox / restricted repos)"
     exit 1
 }
 
@@ -26,6 +39,7 @@ while [[ $# -gt 0 ]]; do
         --server) SERVER_URL="$2"; shift 2 ;;
         --token)  WRITE_TOKEN="$2"; shift 2 ;;
         --role)   ROLE="$2"; shift 2 ;;
+        --deb)    USE_DEB=true; shift ;;
         *) echo "Unknown argument: $1"; usage ;;
     esac
 done
@@ -37,16 +51,33 @@ done
 echo "==> Installing Telegraf power monitoring agent"
 echo "    Server: $SERVER_URL"
 echo "    Role:   $ROLE"
+echo "    Method: $([ "$USE_DEB" = true ] && echo 'direct .deb download' || echo 'package repo')"
 
-# ── Detect distro and install Telegraf ────────────────────────────────────────
-install_telegraf() {
-    if command -v telegraf &>/dev/null; then
-        echo "==> Telegraf already installed: $(telegraf --version | head -1)"
-        return
+# ── Install via direct .deb (Proxmox / restricted repo systems) ───────────────
+install_telegraf_deb() {
+    local tmp_deb
+    tmp_deb="$(mktemp /tmp/telegraf_XXXXXX.deb)"
+
+    echo "==> Downloading Telegraf ${TELEGRAF_DEB_VERSION} .deb..."
+    if command -v curl &>/dev/null; then
+        curl -fsSL "$TELEGRAF_DEB_URL" -o "$tmp_deb"
+    elif command -v wget &>/dev/null; then
+        wget -q "$TELEGRAF_DEB_URL" -O "$tmp_deb"
+    else
+        echo "ERROR: curl or wget is required to download Telegraf"
+        exit 1
     fi
 
+    echo "==> Installing .deb package..."
+    dpkg -i "$tmp_deb"
+    rm -f "$tmp_deb"
+    echo "==> Telegraf installed: $(telegraf --version | head -1)"
+}
+
+# ── Install via package repo (standard distros) ───────────────────────────────
+install_telegraf_repo() {
     if [[ -f /etc/debian_version ]]; then
-        echo "==> Installing Telegraf (Debian/Ubuntu)"
+        echo "==> Installing Telegraf via InfluxData apt repo (Debian/Ubuntu)"
         curl -fsSL https://repos.influxdata.com/influxdata-archive_compat.key \
             | gpg --dearmor -o /etc/apt/trusted.gpg.d/influxdata-archive_compat.gpg
         echo "deb [signed-by=/etc/apt/trusted.gpg.d/influxdata-archive_compat.gpg] \
@@ -56,7 +87,7 @@ https://repos.influxdata.com/debian stable main" \
         apt-get install -y telegraf
 
     elif [[ -f /etc/redhat-release ]] || [[ -f /etc/fedora-release ]]; then
-        echo "==> Installing Telegraf (RHEL/CentOS/Fedora)"
+        echo "==> Installing Telegraf via InfluxData yum repo (RHEL/CentOS/Fedora)"
         cat > /etc/yum.repos.d/influxdata.repo <<'EOF'
 [influxdata]
 name = InfluxData Repository
@@ -68,7 +99,7 @@ EOF
         yum install -y telegraf
 
     elif [[ -f /etc/arch-release ]]; then
-        echo "==> Installing Telegraf (Arch Linux)"
+        echo "==> Installing Telegraf via AUR (Arch Linux)"
         if ! command -v yay &>/dev/null && ! command -v paru &>/dev/null; then
             echo "ERROR: AUR helper (yay/paru) required for Arch. Install telegraf from AUR manually."
             exit 1
@@ -78,13 +109,21 @@ EOF
         sudo -u "${SUDO_USER:-nobody}" "$aur_cmd" -S --noconfirm telegraf-bin
 
     else
-        echo "ERROR: Unsupported distro. Install Telegraf manually from https://docs.influxdata.com/telegraf/v1/install/"
+        echo "ERROR: Unsupported distro. Use --deb for direct download, or install Telegraf manually:"
+        echo "       https://docs.influxdata.com/telegraf/v1/install/"
         exit 1
     fi
     echo "==> Telegraf installed: $(telegraf --version | head -1)"
 }
 
-install_telegraf
+# ── Main install dispatch ──────────────────────────────────────────────────────
+if command -v telegraf &>/dev/null; then
+    echo "==> Telegraf already installed: $(telegraf --version | head -1)"
+elif [[ "$USE_DEB" == true ]]; then
+    install_telegraf_deb
+else
+    install_telegraf_repo
+fi
 
 # ── Copy config and scripts ────────────────────────────────────────────────────
 echo "==> Deploying configuration"
@@ -108,7 +147,6 @@ if command -v nvidia-smi &>/dev/null; then
     echo "==> NVIDIA GPU detected — enabling GPU metrics block"
     sed -i 's/^## \(\[\[inputs.exec\]\]\)/\1/' "$TELEGRAF_CONF_DEST"
     sed -i 's/^##   commands = \(\[$/  commands = \[/' "$TELEGRAF_CONF_DEST"
-    # Simpler approach: uncomment the nvidia block lines
     sed -i '/nvidia-smi/{ s/^## //; }' "$TELEGRAF_CONF_DEST"
     sed -i '/--query-gpu/{ s/^## //; }' "$TELEGRAF_CONF_DEST"
 else
@@ -120,7 +158,6 @@ echo "==> Configuring RAPL read permissions"
 if getent group power &>/dev/null; then
     usermod -aG power telegraf
     echo "    Added telegraf user to 'power' group"
-    # Set group permissions on powercap
     if [[ -d /sys/class/powercap ]]; then
         chgrp -R power /sys/class/powercap 2>/dev/null || true
         chmod -R g+r /sys/class/powercap 2>/dev/null || true
@@ -132,7 +169,6 @@ SUBSYSTEM=="powercap", ACTION=="add", RUN+="/bin/chgrp telegraf /sys/class/power
 SUBSYSTEM=="powercap", ACTION=="add", RUN+="/bin/chmod g+r /sys/class/powercap/intel-rapl/*/energy_uj /sys/class/powercap/intel-rapl/*/*/energy_uj"
 EOF
     udevadm control --reload-rules
-    # Apply permissions immediately to existing files
     find /sys/class/powercap -name 'energy_uj' -exec chown root:telegraf {} \; -exec chmod g+r {} \; 2>/dev/null || true
     find /sys/class/powercap -name 'max_energy_range_uj' -exec chown root:telegraf {} \; -exec chmod g+r {} \; 2>/dev/null || true
     echo "    udev rule created at /etc/udev/rules.d/99-rapl.rules"

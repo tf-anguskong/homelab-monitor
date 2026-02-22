@@ -70,8 +70,17 @@ sudo ./agents/linux/install-linux.sh \
   [--role my-server-name]
 ```
 
+**Proxmox or systems with restricted repos** — use `--deb` to skip repo setup and download the `.deb` directly instead:
+
+```bash
+sudo ./agents/linux/install-linux.sh \
+  --server http://<SERVER_IP>:8086 \
+  --token <WRITE_TOKEN> \
+  --deb
+```
+
 The script:
-- Detects Debian/RHEL/Arch and installs Telegraf from the official InfluxData repo
+- Installs Telegraf via apt/yum repo (default) or direct `.deb` download (`--deb`)
 - Deploys config and the RAPL power script
 - Fixes RAPL read permissions (adds `telegraf` to `power` group or creates a udev rule)
 - Enables the Telegraf systemd service
