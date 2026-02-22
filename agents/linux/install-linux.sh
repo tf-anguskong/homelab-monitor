@@ -161,6 +161,38 @@ else
     echo "==> No NVIDIA GPU found — GPU block remains commented out"
 fi
 
+# ── RAPL kernel modules ───────────────────────────────────────────────────────
+# Proxmox and some minimal kernels don't auto-load RAPL modules.
+# Load them now and make them persistent across reboots.
+echo "==> Checking Intel RAPL kernel modules"
+if [[ ! -d /sys/class/powercap/intel-rapl ]]; then
+    echo "    RAPL not yet exposed — loading kernel modules..."
+    modprobe intel_rapl_common 2>/dev/null || true
+    modprobe intel_rapl_msr    2>/dev/null || true
+    sleep 1
+    if [[ -d /sys/class/powercap/intel-rapl ]]; then
+        echo "    Modules loaded successfully"
+    else
+        echo "    WARNING: RAPL still not available after loading modules."
+        echo "    Your CPU or kernel may not support Intel RAPL."
+        echo "    Power metrics will be skipped — all other metrics will still be collected."
+    fi
+else
+    echo "    RAPL already available"
+fi
+
+# Persist modules across reboots
+MODULES_LOAD_FILE="/etc/modules-load.d/rapl.conf"
+if [[ ! -f "$MODULES_LOAD_FILE" ]]; then
+    echo "==> Making RAPL modules persistent across reboots"
+    cat > "$MODULES_LOAD_FILE" <<'EOF'
+# Intel RAPL power reporting — loaded for Telegraf power monitoring
+intel_rapl_common
+intel_rapl_msr
+EOF
+    echo "    Written to $MODULES_LOAD_FILE"
+fi
+
 # ── RAPL permissions ───────────────────────────────────────────────────────────
 echo "==> Configuring RAPL read permissions"
 if getent group power &>/dev/null; then
