@@ -1,0 +1,382 @@
+{
+  "__inputs": [],
+  "__requires": [
+    {"type": "grafana", "id": "grafana", "name": "Grafana", "version": "10.4.0"},
+    {"type": "datasource", "id": "influxdb", "name": "InfluxDB", "version": "1.0.0"},
+    {"type": "panel", "id": "timeseries", "name": "Time series", "version": ""},
+    {"type": "panel", "id": "stat", "name": "Stat", "version": ""},
+    {"type": "panel", "id": "table", "name": "Table", "version": ""},
+    {"type": "panel", "id": "barchart", "name": "Bar chart", "version": ""}
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {"type": "grafana", "uid": "-- Grafana --"},
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Homelab power monitoring — per-host power draw, CPU, memory, and network",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Total Power Now",
+      "description": "Sum of all host power readings in the last minute",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 200},
+              {"color": "red", "value": 400}
+            ]
+          },
+          "unit": "watt",
+          "mappings": []
+        }
+      },
+      "datasource": {"type": "influxdb", "uid": "${datasource}"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> last()\n  |> group()\n  |> sum()",
+          "datasource": {"type": "influxdb", "uid": "${datasource}"}
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Active Hosts",
+      "description": "Number of hosts reporting in the last 2 minutes",
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 1},
+              {"color": "green", "value": 2}
+            ]
+          },
+          "unit": "short",
+          "mappings": []
+        }
+      },
+      "datasource": {"type": "influxdb", "uid": "${datasource}"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> last()\n  |> group()\n  |> count()",
+          "datasource": {"type": "influxdb", "uid": "${datasource}"}
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Peak Power (1h)",
+      "description": "Highest total power reading in the last hour",
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "fixed", "fixedColor": "orange"},
+          "unit": "watt",
+          "mappings": []
+        }
+      },
+      "datasource": {"type": "influxdb", "uid": "${datasource}"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> group()\n  |> aggregateWindow(every: 1m, fn: sum, createEmpty: false)\n  |> max()",
+          "datasource": {"type": "influxdb", "uid": "${datasource}"}
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Avg Power (1h)",
+      "description": "Average total power over the last hour",
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "fixed", "fixedColor": "blue"},
+          "unit": "watt",
+          "mappings": []
+        }
+      },
+      "datasource": {"type": "influxdb", "uid": "${datasource}"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> group()\n  |> aggregateWindow(every: 1m, fn: sum, createEmpty: false)\n  |> mean()",
+          "datasource": {"type": "influxdb", "uid": "${datasource}"}
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Power per Host",
+      "description": "Total power draw over time, one line per reporting host",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 4},
+      "options": {
+        "legend": {"calcs": ["mean", "max", "lastNotNull"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "unit": "watt",
+          "mappings": []
+        }
+      },
+      "datasource": {"type": "influxdb", "uid": "${datasource}"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> group(columns: [\"host\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+          "datasource": {"type": "influxdb", "uid": "${datasource}"}
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "barchart",
+      "title": "CPU vs DRAM Power by Host",
+      "description": "Breakdown of current power draw by component",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+      "options": {
+        "barWidth": 0.6,
+        "groupWidth": 0.7,
+        "stacking": "normal",
+        "legend": {"displayMode": "list", "placement": "bottom"},
+        "tooltip": {"mode": "multi"}
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "unit": "watt",
+          "mappings": []
+        }
+      },
+      "datasource": {"type": "influxdb", "uid": "${datasource}"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and (r.domain == \"cpu\" or r.domain == \"dram\" or r.domain == \"gpu\"))\n  |> last()\n  |> group(columns: [\"host\", \"domain\"])\n  |> mean()\n  |> group()",
+          "datasource": {"type": "influxdb", "uid": "${datasource}"}
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "Current Power by Host",
+      "description": "Latest power readings with CPU and memory utilization",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+      "options": {
+        "footer": {"show": false},
+        "sortBy": [{"displayName": "Watts", "desc": true}]
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 100},
+              {"color": "red", "value": 200}
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "Watts"},
+            "properties": [{"id": "unit", "value": "watt"}]
+          },
+          {
+            "matcher": {"id": "byName", "options": "CPU %"},
+            "properties": [{"id": "unit", "value": "percent"}]
+          },
+          {
+            "matcher": {"id": "byName", "options": "RAM %"},
+            "properties": [{"id": "unit", "value": "percent"}]
+          }
+        ]
+      },
+      "datasource": {"type": "influxdb", "uid": "${datasource}"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> last()\n  |> rename(columns: {_value: \"Watts\", host: \"Host\"})\n  |> keep(columns: [\"Host\", \"Watts\"])",
+          "datasource": {"type": "influxdb", "uid": "${datasource}"}
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "CPU Usage per Host",
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 20},
+      "options": {
+        "legend": {"calcs": ["mean"], "displayMode": "list", "placement": "bottom"},
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"lineWidth": 2, "fillOpacity": 10, "showPoints": "never"},
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "mappings": []
+        }
+      },
+      "datasource": {"type": "influxdb", "uid": "${datasource}"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"cpu\" and r._field == \"usage_active\" and r.cpu == \"cpu-total\")\n  |> group(columns: [\"host\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+          "datasource": {"type": "influxdb", "uid": "${datasource}"}
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Memory Usage per Host",
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 20},
+      "options": {
+        "legend": {"calcs": ["mean"], "displayMode": "list", "placement": "bottom"},
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"lineWidth": 2, "fillOpacity": 10, "showPoints": "never"},
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "mappings": []
+        }
+      },
+      "datasource": {"type": "influxdb", "uid": "${datasource}"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"mem\" and r._field == \"used_percent\")\n  |> group(columns: [\"host\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+          "datasource": {"type": "influxdb", "uid": "${datasource}"}
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Network I/O per Host",
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 20},
+      "options": {
+        "legend": {"calcs": ["mean"], "displayMode": "list", "placement": "bottom"},
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"lineWidth": 2, "fillOpacity": 5, "showPoints": "never"},
+          "unit": "Bps",
+          "mappings": []
+        }
+      },
+      "datasource": {"type": "influxdb", "uid": "${datasource}"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"net\" and (r._field == \"bytes_recv\" or r._field == \"bytes_sent\"))\n  |> group(columns: [\"host\", \"_field\"])\n  |> derivative(unit: 1s, nonNegative: true)\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+          "datasource": {"type": "influxdb", "uid": "${datasource}"}
+        }
+      ]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 38,
+  "tags": ["power", "homelab", "monitoring"],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "name": "datasource",
+        "options": [],
+        "query": "influxdb",
+        "refresh": 1,
+        "type": "datasource",
+        "label": "Data Source"
+      }
+    ]
+  },
+  "time": {"from": "now-1h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Homelab Power Monitoring",
+  "uid": "homelab-power-001",
+  "version": 1,
+  "weekStart": ""
+}

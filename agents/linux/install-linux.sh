@@ -1,0 +1,164 @@
+#!/usr/bin/env bash
+# install-linux.sh — Install and configure Telegraf power monitoring agent
+# Usage: sudo ./install-linux.sh --server http://INFLUXDB_HOST:8086 --token YOUR_WRITE_TOKEN [--role NAME]
+# Must be run as root.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TELEGRAF_CONF_SRC="$SCRIPT_DIR/telegraf-linux.conf"
+SCRIPTS_SRC="$SCRIPT_DIR/scripts"
+TELEGRAF_CONF_DEST="/etc/telegraf/telegraf.conf"
+SCRIPTS_DEST="/etc/telegraf/scripts"
+
+SERVER_URL=""
+WRITE_TOKEN=""
+ROLE="agent"
+
+# ── Parse arguments ────────────────────────────────────────────────────────────
+usage() {
+    echo "Usage: sudo $0 --server http://HOST:8086 --token TOKEN [--role ROLE]"
+    exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --server) SERVER_URL="$2"; shift 2 ;;
+        --token)  WRITE_TOKEN="$2"; shift 2 ;;
+        --role)   ROLE="$2"; shift 2 ;;
+        *) echo "Unknown argument: $1"; usage ;;
+    esac
+done
+
+[[ -z "$SERVER_URL" ]] && { echo "ERROR: --server is required"; usage; }
+[[ -z "$WRITE_TOKEN" ]] && { echo "ERROR: --token is required"; usage; }
+[[ "$(id -u)" -ne 0 ]] && { echo "ERROR: must be run as root (sudo)"; exit 1; }
+
+echo "==> Installing Telegraf power monitoring agent"
+echo "    Server: $SERVER_URL"
+echo "    Role:   $ROLE"
+
+# ── Detect distro and install Telegraf ────────────────────────────────────────
+install_telegraf() {
+    if command -v telegraf &>/dev/null; then
+        echo "==> Telegraf already installed: $(telegraf --version | head -1)"
+        return
+    fi
+
+    if [[ -f /etc/debian_version ]]; then
+        echo "==> Installing Telegraf (Debian/Ubuntu)"
+        curl -fsSL https://repos.influxdata.com/influxdata-archive_compat.key \
+            | gpg --dearmor -o /etc/apt/trusted.gpg.d/influxdata-archive_compat.gpg
+        echo "deb [signed-by=/etc/apt/trusted.gpg.d/influxdata-archive_compat.gpg] \
+https://repos.influxdata.com/debian stable main" \
+            > /etc/apt/sources.list.d/influxdata.list
+        apt-get update -q
+        apt-get install -y telegraf
+
+    elif [[ -f /etc/redhat-release ]] || [[ -f /etc/fedora-release ]]; then
+        echo "==> Installing Telegraf (RHEL/CentOS/Fedora)"
+        cat > /etc/yum.repos.d/influxdata.repo <<'EOF'
+[influxdata]
+name = InfluxData Repository
+baseurl = https://repos.influxdata.com/rhel/$releasever/$basearch/stable/
+enabled = 1
+gpgcheck = 1
+gpgkey = https://repos.influxdata.com/influxdata-archive_compat.key
+EOF
+        yum install -y telegraf
+
+    elif [[ -f /etc/arch-release ]]; then
+        echo "==> Installing Telegraf (Arch Linux)"
+        if ! command -v yay &>/dev/null && ! command -v paru &>/dev/null; then
+            echo "ERROR: AUR helper (yay/paru) required for Arch. Install telegraf from AUR manually."
+            exit 1
+        fi
+        local aur_cmd
+        aur_cmd=$(command -v yay || command -v paru)
+        sudo -u "${SUDO_USER:-nobody}" "$aur_cmd" -S --noconfirm telegraf-bin
+
+    else
+        echo "ERROR: Unsupported distro. Install Telegraf manually from https://docs.influxdata.com/telegraf/v1/install/"
+        exit 1
+    fi
+    echo "==> Telegraf installed: $(telegraf --version | head -1)"
+}
+
+install_telegraf
+
+# ── Copy config and scripts ────────────────────────────────────────────────────
+echo "==> Deploying configuration"
+systemctl stop telegraf 2>/dev/null || true
+
+cp "$TELEGRAF_CONF_SRC" "$TELEGRAF_CONF_DEST"
+mkdir -p "$SCRIPTS_DEST"
+cp "$SCRIPTS_SRC/rapl-power.sh" "$SCRIPTS_DEST/rapl-power.sh"
+chmod +x "$SCRIPTS_DEST/rapl-power.sh"
+
+# ── Substitute placeholders ────────────────────────────────────────────────────
+echo "==> Writing server URL and token into config"
+sed -i "s|INFLUXDB_SERVER_URL|${SERVER_URL}|g" "$TELEGRAF_CONF_DEST"
+sed -i "s|WRITE_TOKEN_HERE|${WRITE_TOKEN}|g"    "$TELEGRAF_CONF_DEST"
+
+# Set role tag
+sed -i "s|role = \"agent\"|role = \"${ROLE}\"|g" "$TELEGRAF_CONF_DEST"
+
+# ── NVIDIA GPU detection ───────────────────────────────────────────────────────
+if command -v nvidia-smi &>/dev/null; then
+    echo "==> NVIDIA GPU detected — enabling GPU metrics block"
+    sed -i 's/^## \(\[\[inputs.exec\]\]\)/\1/' "$TELEGRAF_CONF_DEST"
+    sed -i 's/^##   commands = \(\[$/  commands = \[/' "$TELEGRAF_CONF_DEST"
+    # Simpler approach: uncomment the nvidia block lines
+    sed -i '/nvidia-smi/{ s/^## //; }' "$TELEGRAF_CONF_DEST"
+    sed -i '/--query-gpu/{ s/^## //; }' "$TELEGRAF_CONF_DEST"
+else
+    echo "==> No NVIDIA GPU found — GPU block remains commented out"
+fi
+
+# ── RAPL permissions ───────────────────────────────────────────────────────────
+echo "==> Configuring RAPL read permissions"
+if getent group power &>/dev/null; then
+    usermod -aG power telegraf
+    echo "    Added telegraf user to 'power' group"
+    # Set group permissions on powercap
+    if [[ -d /sys/class/powercap ]]; then
+        chgrp -R power /sys/class/powercap 2>/dev/null || true
+        chmod -R g+r /sys/class/powercap 2>/dev/null || true
+    fi
+else
+    echo "    'power' group not found — creating udev rule"
+    cat > /etc/udev/rules.d/99-rapl.rules <<'EOF'
+SUBSYSTEM=="powercap", ACTION=="add", RUN+="/bin/chgrp telegraf /sys/class/powercap/intel-rapl/*/energy_uj /sys/class/powercap/intel-rapl/*/*/energy_uj"
+SUBSYSTEM=="powercap", ACTION=="add", RUN+="/bin/chmod g+r /sys/class/powercap/intel-rapl/*/energy_uj /sys/class/powercap/intel-rapl/*/*/energy_uj"
+EOF
+    udevadm control --reload-rules
+    # Apply permissions immediately to existing files
+    find /sys/class/powercap -name 'energy_uj' -exec chown root:telegraf {} \; -exec chmod g+r {} \; 2>/dev/null || true
+    find /sys/class/powercap -name 'max_energy_range_uj' -exec chown root:telegraf {} \; -exec chmod g+r {} \; 2>/dev/null || true
+    echo "    udev rule created at /etc/udev/rules.d/99-rapl.rules"
+fi
+
+# ── Enable and start Telegraf ──────────────────────────────────────────────────
+echo "==> Enabling and starting Telegraf service"
+systemctl daemon-reload
+systemctl enable telegraf
+systemctl restart telegraf
+
+# ── Verify ────────────────────────────────────────────────────────────────────
+sleep 3
+if systemctl is-active --quiet telegraf; then
+    echo ""
+    echo "✓ Telegraf is running successfully"
+    echo ""
+    echo "Useful commands:"
+    echo "  systemctl status telegraf"
+    echo "  journalctl -u telegraf -f"
+    echo "  telegraf --config $TELEGRAF_CONF_DEST --test"
+    echo ""
+    echo "Data should appear in InfluxDB within 30 seconds."
+else
+    echo ""
+    echo "ERROR: Telegraf failed to start. Check logs:"
+    journalctl -u telegraf --no-pager -n 30
+    exit 1
+fi

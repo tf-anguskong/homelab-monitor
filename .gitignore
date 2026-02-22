@@ -1,0 +1,12 @@
+# Claude project files
+CLAUDE.md
+
+# Secrets
+server/.env
+
+# Local Claude settings
+.claude/
+
+# OS artifacts
+.DS_Store
+Thumbs.db
