@@ -26,6 +26,14 @@ WRITE_TOKEN=""
 ROLE="agent"
 USE_DEB=false
 
+# ── Strip carriage returns from all arguments ─────────────────────────────────
+# Protects against \r injected by copy-paste from Windows terminals or CRLF scripts
+cleaned_args=()
+for arg in "$@"; do
+    cleaned_args+=("${arg//$'\r'/}")
+done
+set -- "${cleaned_args[@]+"${cleaned_args[@]}"}"
+
 # ── Parse arguments ────────────────────────────────────────────────────────────
 usage() {
     echo "Usage: sudo $0 --server http://HOST:8086 --token TOKEN [--role ROLE] [--deb]"

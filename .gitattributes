@@ -1,0 +1,14 @@
+# Force LF line endings on all platforms for shell scripts and configs
+* text=auto
+
+*.sh    text eol=lf
+*.conf  text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+*.env*  text eol=lf
+
+# PowerShell is Windows-only so CRLF is fine
+*.ps1   text eol=crlf
+*.psm1  text eol=crlf
