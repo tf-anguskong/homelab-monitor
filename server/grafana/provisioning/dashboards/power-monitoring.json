@@ -32,7 +32,7 @@
       "id": 1,
       "type": "stat",
       "title": "Total Power Now",
-      "description": "Sum of all host power readings in the last minute",
+      "description": "Sum of all host power readings in the last 2 minutes",
       "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
       "options": {
         "colorMode": "background",
@@ -198,8 +198,8 @@
     {
       "id": 6,
       "type": "barchart",
-      "title": "CPU vs DRAM Power by Host",
-      "description": "Breakdown of current power draw by component",
+      "title": "Power Breakdown by Domain",
+      "description": "Current power draw by component per host. Linux: package/core/dram. Windows: cpu/dram.",
       "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
       "options": {
         "barWidth": 0.6,
@@ -219,7 +219,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and (r.domain == \"cpu\" or r.domain == \"dram\" or r.domain == \"gpu\"))\n  |> last()\n  |> group(columns: [\"host\", \"domain\"])\n  |> mean()\n  |> group()",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain != \"total\")\n  |> last()\n  |> group(columns: [\"host\", \"domain\"])\n  |> mean()\n  |> group()",
           "datasource": {"type": "influxdb", "uid": "${datasource}"}
         }
       ]
@@ -228,7 +228,7 @@
       "id": 7,
       "type": "table",
       "title": "Current Power by Host",
-      "description": "Latest power readings with CPU and memory utilization",
+      "description": "Latest total power readings per host",
       "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
       "options": {
         "footer": {"show": false},
@@ -251,14 +251,6 @@
           {
             "matcher": {"id": "byName", "options": "Watts"},
             "properties": [{"id": "unit", "value": "watt"}]
-          },
-          {
-            "matcher": {"id": "byName", "options": "CPU %"},
-            "properties": [{"id": "unit", "value": "percent"}]
-          },
-          {
-            "matcher": {"id": "byName", "options": "RAM %"},
-            "properties": [{"id": "unit", "value": "percent"}]
           }
         ]
       },
@@ -349,6 +341,46 @@
         {
           "refId": "A",
           "query": "from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"net\" and (r._field == \"bytes_recv\" or r._field == \"bytes_sent\"))\n  |> group(columns: [\"host\", \"_field\"])\n  |> derivative(unit: 1s, nonNegative: true)\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+          "datasource": {"type": "influxdb", "uid": "${datasource}"}
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Estimated Energy — Selected Period",
+      "description": "Total energy consumed across all hosts for the selected dashboard time range. Calculated by integrating power (watts) over time. Accuracy depends on data collection interval (10s).",
+      "gridPos": {"h": 4, "w": 24, "x": 0, "y": 28},
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "blue", "value": null},
+              {"color": "green", "value": 100},
+              {"color": "yellow", "value": 1000},
+              {"color": "orange", "value": 5000}
+            ]
+          },
+          "unit": "watth",
+          "mappings": [],
+          "decimals": 2
+        }
+      },
+      "datasource": {"type": "influxdb", "uid": "${datasource}"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> group(columns: [\"host\"])\n  |> integral(unit: 1h)\n  |> group()\n  |> sum()",
           "datasource": {"type": "influxdb", "uid": "${datasource}"}
         }
       ]

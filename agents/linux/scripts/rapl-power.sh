@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # rapl-power.sh — Read Intel RAPL energy counters and emit Telegraf line protocol
-# Requires read access to /sys/class/powercap/intel-rapl (root or 'power' group)
+# Requires root or read access to /sys/class/powercap/intel-rapl
 # Output: power,source=rapl,domain=<name> watts=<value>
+#         power,source=rapl,domain=total  watts=<sum of package-level domains>
 
 set -euo pipefail
 
@@ -27,7 +28,6 @@ for domain_path in "$RAPL_BASE"/intel-rapl:*; do
 
     if [[ -f "$domain_path/name" ]]; then
         raw_name=$(cat "$domain_path/name")
-        # Sanitize name: replace spaces and colons with dashes
         domain_name["$key"]="${raw_name// /-}"
         domain_name["$key"]="${domain_name["$key"]//:/-}"
     else
@@ -67,14 +67,14 @@ sleep 1
 t_end=$(date +%s%6N)
 delta_us=$(( t_end - t_start ))
 
+# Compute watts for each domain and store results
+declare -A watts_result
+
 for key in "${!energy_start[@]}"; do
-    # Find the energy_uj file for this key
-    energy_file=""
     if [[ "$key" =~ ^intel-rapl:[0-9]+$ ]]; then
         energy_file="$RAPL_BASE/$key/energy_uj"
     else
-        # Sub-domain: e.g., intel-rapl:0:0
-        parent_key=$(echo "$key" | sed 's/:\([0-9]*\)$//')
+        parent_key=$(echo "$key" | sed 's/:[0-9]*$//')
         energy_file="$RAPL_BASE/$parent_key/$key/energy_uj"
     fi
 
@@ -83,14 +83,11 @@ for key in "${!energy_start[@]}"; do
     energy_end=$(cat "$energy_file")
     e_start=${energy_start["$key"]}
     e_max=${energy_max["$key"]}
-    name=${domain_name["$key"]}
 
-    # Handle counter wraparound
-    awk -v e_start="$e_start" \
+    watts_val=$(awk -v e_start="$e_start" \
         -v e_end="$energy_end" \
         -v e_max="$e_max" \
         -v delta_us="$delta_us" \
-        -v name="$name" \
     'BEGIN {
         delta_uj = e_end - e_start
         if (delta_uj < 0) {
@@ -98,7 +95,28 @@ for key in "${!energy_start[@]}"; do
         }
         watts = delta_uj / delta_us
         if (watts >= 0 && watts < 10000) {
-            printf "power,source=rapl,domain=%s watts=%.3f\n", name, watts
+            printf "%.3f", watts
         }
-    }'
+    }')
+
+    [[ -n "$watts_val" ]] && watts_result["$key"]="$watts_val"
 done
+
+# Emit individual domain lines
+for key in "${!watts_result[@]}"; do
+    echo "power,source=rapl,domain=${domain_name[$key]} watts=${watts_result[$key]}"
+done
+
+# Emit total = sum of package-level domains only (intel-rapl:N, not intel-rapl:N:M)
+# Package-level already includes core + uncore + dram — don't double-count sub-domains
+total_watts="0"
+for key in "${!watts_result[@]}"; do
+    if [[ "$key" =~ ^intel-rapl:[0-9]+$ ]]; then
+        total_watts=$(awk -v a="$total_watts" -v b="${watts_result[$key]}" \
+            'BEGIN { printf "%.3f", a + b }')
+    fi
+done
+
+if awk -v t="$total_watts" 'BEGIN { exit !(t > 0) }'; then
+    echo "power,source=rapl,domain=total watts=$total_watts"
+fi
