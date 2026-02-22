@@ -194,25 +194,22 @@ EOF
 fi
 
 # ── RAPL permissions ───────────────────────────────────────────────────────────
+# chown/chgrp do not work on sysfs pseudo-files; chmod o+r does.
+# We make powercap files world-readable immediately and persist via udev rule.
 echo "==> Configuring RAPL read permissions"
-if getent group power &>/dev/null; then
-    usermod -aG power telegraf
-    echo "    Added telegraf user to 'power' group"
-    if [[ -d /sys/class/powercap ]]; then
-        chgrp -R power /sys/class/powercap 2>/dev/null || true
-        chmod -R g+r /sys/class/powercap 2>/dev/null || true
-    fi
+if [[ -d /sys/class/powercap ]]; then
+    chmod -R o+r /sys/class/powercap 2>/dev/null || true
+    echo "    Set world-readable on /sys/class/powercap"
 else
-    echo "    'power' group not found — creating udev rule"
-    cat > /etc/udev/rules.d/99-rapl.rules <<'EOF'
-SUBSYSTEM=="powercap", ACTION=="add", RUN+="/bin/chgrp telegraf /sys/class/powercap/intel-rapl/*/energy_uj /sys/class/powercap/intel-rapl/*/*/energy_uj"
-SUBSYSTEM=="powercap", ACTION=="add", RUN+="/bin/chmod g+r /sys/class/powercap/intel-rapl/*/energy_uj /sys/class/powercap/intel-rapl/*/*/energy_uj"
-EOF
-    udevadm control --reload-rules
-    find /sys/class/powercap -name 'energy_uj' -exec chown root:telegraf {} \; -exec chmod g+r {} \; 2>/dev/null || true
-    find /sys/class/powercap -name 'max_energy_range_uj' -exec chown root:telegraf {} \; -exec chmod g+r {} \; 2>/dev/null || true
-    echo "    udev rule created at /etc/udev/rules.d/99-rapl.rules"
+    echo "    /sys/class/powercap not present — skipping (no RAPL on this system)"
 fi
+
+# Udev rule re-applies permissions every time the modules load (e.g. after reboot)
+cat > /etc/udev/rules.d/99-rapl.rules <<'EOF'
+SUBSYSTEM=="powercap", ACTION=="add", RUN+="/bin/chmod -R o+r /sys/class/powercap"
+EOF
+udevadm control --reload-rules
+echo "    Udev rule written to /etc/udev/rules.d/99-rapl.rules (persists across reboots)"
 
 # ── Enable and start Telegraf ──────────────────────────────────────────────────
 echo "==> Enabling and starting Telegraf service"
