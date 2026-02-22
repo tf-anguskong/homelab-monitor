@@ -106,12 +106,10 @@ bash agents/linux/scripts/rapl-power.sh
 
 ### Install
 
+Run as a single line (backtick line continuations can break on copy-paste):
+
 ```powershell
-.\agents\windows\install-windows.ps1 `
-  -ServerUrl http://<SERVER_IP>:8086 `
-  -WriteToken <WRITE_TOKEN> `
-  -TdpWatts 65 `
-  -Role my-desktop
+.\agents\windows\install-windows.ps1 -ServerUrl http://<SERVER_IP>:8086 -WriteToken <WRITE_TOKEN> -TdpWatts 65
 ```
 
 **TdpWatts** — set this to your CPU's rated TDP (check the CPU spec sheet or manufacturer website). This value is only used when on AC power; laptop battery readings are always real.
