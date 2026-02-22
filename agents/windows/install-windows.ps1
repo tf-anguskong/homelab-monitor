@@ -71,7 +71,7 @@ else {
     if (-not $extracted) { throw "telegraf.exe not found in downloaded archive" }
 
     New-Item -ItemType Directory -Path $TelegrafInstallDir -Force | Out-Null
-    Copy-Item -Path $extracted.DirectoryName\* -Destination $TelegrafInstallDir -Recurse -Force
+    Copy-Item -Path "$($extracted.DirectoryName)\*" -Destination $TelegrafInstallDir -Recurse -Force
 
     Remove-Item $TempZip -Force
     Remove-Item $TempExtract -Recurse -Force
