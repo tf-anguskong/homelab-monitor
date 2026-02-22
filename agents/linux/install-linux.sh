@@ -193,23 +193,19 @@ EOF
     echo "    Written to $MODULES_LOAD_FILE"
 fi
 
-# ── RAPL permissions ───────────────────────────────────────────────────────────
-# chown/chgrp do not work on sysfs pseudo-files; chmod o+r does.
-# We make powercap files world-readable immediately and persist via udev rule.
-echo "==> Configuring RAPL read permissions"
-if [[ -d /sys/class/powercap ]]; then
-    chmod -R o+r /sys/class/powercap 2>/dev/null || true
-    echo "    Set world-readable on /sys/class/powercap"
-else
-    echo "    /sys/class/powercap not present — skipping (no RAPL on this system)"
-fi
-
-# Udev rule re-applies permissions every time the modules load (e.g. after reboot)
-cat > /etc/udev/rules.d/99-rapl.rules <<'EOF'
-SUBSYSTEM=="powercap", ACTION=="add", RUN+="/bin/chmod -R o+r /sys/class/powercap"
+# ── RAPL permissions — run telegraf as root via systemd override ───────────────
+# sysfs RAPL files are root-only and permissions reset on module reload.
+# The most reliable fix is a systemd drop-in that runs telegraf as root.
+# For a local monitoring agent this is acceptable; it avoids a sudo dependency.
+echo "==> Configuring telegraf service to run as root (required for RAPL access)"
+OVERRIDE_DIR="/etc/systemd/system/telegraf.service.d"
+mkdir -p "$OVERRIDE_DIR"
+cat > "$OVERRIDE_DIR/rapl-root.conf" <<'EOF'
+[Service]
+User=root
+Group=root
 EOF
-udevadm control --reload-rules
-echo "    Udev rule written to /etc/udev/rules.d/99-rapl.rules (persists across reboots)"
+echo "    Systemd override written to $OVERRIDE_DIR/rapl-root.conf"
 
 # ── Enable and start Telegraf ──────────────────────────────────────────────────
 echo "==> Enabling and starting Telegraf service"
