@@ -198,13 +198,13 @@
     {
       "id": 6,
       "type": "barchart",
-      "title": "Power Breakdown by Domain",
-      "description": "Current power draw by component per host. Linux: package/core/dram. Windows: cpu/dram.",
+      "title": "Current Power by Host",
+      "description": "Latest total power draw per host. All agent types shown (RAPL, WMI, powermetrics, TDP estimate, Shelly).",
       "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
       "options": {
         "barWidth": 0.6,
         "groupWidth": 0.7,
-        "stacking": "normal",
+        "stacking": "none",
         "legend": {"displayMode": "list", "placement": "bottom"},
         "tooltip": {"mode": "multi"}
       },
@@ -219,7 +219,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain != \"total\")\n  |> group(columns: [\"host\", \"domain\"])\n  |> last()\n  |> group()\n  |> pivot(rowKey: [\"host\"], columnKey: [\"domain\"], valueColumn: \"_value\")",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> group(columns: [\"host\", \"domain\"])\n  |> last()\n  |> group()\n  |> pivot(rowKey: [\"host\"], columnKey: [\"domain\"], valueColumn: \"_value\")",
           "datasource": {"type": "influxdb", "uid": "${datasource}"}
         }
       ]
@@ -228,12 +228,18 @@
       "id": 7,
       "type": "table",
       "title": "Current Power by Host",
-      "description": "Latest total power readings per host",
+      "description": "Latest power and total energy consumed per host for the selected time range",
       "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
       "options": {
         "footer": {"show": false},
-        "sortBy": [{"displayName": "Watts", "desc": true}]
+        "sortBy": [{"displayName": "Current (W)", "desc": true}]
       },
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {"byField": "Host", "mode": "outer"}
+        }
+      ],
       "fieldConfig": {
         "defaults": {
           "color": {"mode": "thresholds"},
@@ -249,9 +255,16 @@
         },
         "overrides": [
           {
-            "matcher": {"id": "byName", "options": "Watts"},
+            "matcher": {"id": "byName", "options": "Current (W)"},
             "properties": [
               {"id": "unit", "value": "watt"},
+              {"id": "decimals", "value": 1}
+            ]
+          },
+          {
+            "matcher": {"id": "byName", "options": "Energy (Wh)"},
+            "properties": [
+              {"id": "unit", "value": "watth"},
               {"id": "decimals", "value": 1}
             ]
           },
@@ -267,7 +280,12 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> group(columns: [\"host\"])\n  |> last()\n  |> group()\n  |> map(fn: (r) => ({Host: r.host, Watts: r._value}))",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> group(columns: [\"host\"])\n  |> last()\n  |> group()\n  |> map(fn: (r) => ({Host: r.host, \"Current (W)\": r._value}))",
+          "datasource": {"type": "influxdb", "uid": "${datasource}"}
+        },
+        {
+          "refId": "B",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> group(columns: [\"host\"])\n  |> integral(unit: 1h)\n  |> group()\n  |> map(fn: (r) => ({Host: r.host, \"Energy (Wh)\": r._value}))",
           "datasource": {"type": "influxdb", "uid": "${datasource}"}
         }
       ]
