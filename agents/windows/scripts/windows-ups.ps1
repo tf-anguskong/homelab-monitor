@@ -100,11 +100,15 @@ if ($PwrstatExe) {
 #              OutCur (output current) is also NULL on USB HID for this model,
 #              so V*I cannot be computed either.
 #
-# EnergyConsumption table (real power — updated every ~60 minutes):
-#   consumption — Wh consumed in the most recently completed hour; since the
-#                 interval is exactly 1 hour, Wh == average watts for that hour.
-#                 Most accurate real-power figure available from PPPE_Db.db.
-#                 Values lag by up to ~1 hour; fine for trend/cost monitoring.
+# Real-time watts derived from BatRun (updates every ~3s):
+#   watts = (BatCap% / 100 * 6480) / BatRun_min
+#   6480 = 12V * 9Ah * 60 min/hr  (CP1500PFCLCD battery capacity in Wh-minutes)
+#   Calibrated: BatRun=50 min -> 6480/50 = 129.6W; UPS display confirmed 130W.
+#   BatRun fluctuates with real CPU/GPU load (e.g. 50<->58 min = 130W<->112W).
+#
+# EnergyConsumption table (fallback — updated every ~60 minutes):
+#   Only used when BatRun=0 or BatRun is unavailable.
+#   consumption == average watts for the most recently completed 1-hour window.
 #
 # Requires sqlite3.exe — install via: winget install SQLite.sqlite
 #   or it may already be present via Git for Windows / Chocolatey.
@@ -139,12 +143,11 @@ if ($PPPDir -and -not $gotData) {
                 $tempDb = "$env:TEMP\pppe_snapshot.db"
                 Copy-Item -Path $dbPath -Destination $tempDb -Force -ErrorAction Stop
 
-                # Battery status from DeviceLog (updates every ~10s)
+                # Battery status + runtime from DeviceLog (updates every ~3s)
                 $sqlDev = "SELECT BatCap, BatRun, PowSour FROM DeviceLog ORDER BY id DESC LIMIT 1;"
                 $rowDev = & $sqlite3 -separator '|' $tempDb $sqlDev 2>$null
 
-                # Real power from EnergyConsumption (Wh per hour = average watts for that hour).
-                # LP in DeviceLog is not reliable real-power for USB HID models — see comment above.
+                # EnergyConsumption: hourly-average fallback, only used when BatRun=0
                 $sqlEc  = "SELECT consumption FROM EnergyConsumption ORDER BY id DESC LIMIT 1;"
                 $rowEc  = & $sqlite3 -separator '|' $tempDb $sqlEc  2>$null
 
@@ -166,13 +169,21 @@ if ($PPPDir -and -not $gotData) {
                             [System.Globalization.NumberStyles]::Any,
                             [System.Globalization.CultureInfo]::InvariantCulture, [ref]$rv)) {
                         $runtimeMin = [int]$rv
+                        # Derive real-time watts from estimated runtime remaining.
+                        # watts = (BatCap% / 100 * BatteryWh * 60) / BatRun_min
+                        # CP1500PFCLCD battery: 12V * 9Ah = 108Wh -> constant = 6480
+                        # Calibrated against UPS display: BatRun=50 -> 129.6W (display: 130W)
+                        if ($rv -gt 0) {
+                            $loadWatts = [math]::Round($bv / 100.0 * 6480.0 / $rv, 1)
+                        }
                     }
                     if ($parts.Count -gt 2) {
                         $onBattery = if ($parts[2] -ne '0') { 1 } else { 0 }
                     }
                 }
 
-                if ($rowEc) {
+                # Fallback: use hourly EnergyConsumption average when BatRun is 0 or missing
+                if ($null -eq $loadWatts -and $rowEc) {
                     $wv = 0.0
                     if ([double]::TryParse($rowEc.Trim(),
                             [System.Globalization.NumberStyles]::Any,
