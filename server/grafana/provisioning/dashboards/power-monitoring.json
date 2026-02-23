@@ -456,7 +456,7 @@
       "id": 13,
       "type": "stat",
       "title": "UPS Status",
-      "description": "CyberPower UPS — battery level, runtime remaining, power source, and current load. Requires PowerPanel Personal to be installed on the Windows host.",
+      "description": "UPS — battery level, runtime remaining, power source, and current load. Supports CyberPower (PowerPanel Personal) and APC (apcupsd).",
       "gridPos": {"h": 4, "w": 24, "x": 0, "y": 32},
       "options": {
         "colorMode": "background",
@@ -539,22 +539,22 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"ups\" and r._field == \"battery_pct\")\n  |> last()\n  |> min()",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: -3m)\n  |> filter(fn: (r) => r._measurement == \"ups\" and r._field == \"battery_pct\")\n  |> last()\n  |> min()",
           "datasource": {"type": "influxdb", "uid": "${datasource}"}
         },
         {
           "refId": "B",
-          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"ups\" and r._field == \"runtime_min\")\n  |> last()\n  |> min()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) * 60.0}))",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: -3m)\n  |> filter(fn: (r) => r._measurement == \"ups\" and r._field == \"runtime_min\")\n  |> last()\n  |> min()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) * 60.0}))",
           "datasource": {"type": "influxdb", "uid": "${datasource}"}
         },
         {
           "refId": "C",
-          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"ups\" and r._field == \"on_battery\")\n  |> last()\n  |> max()",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: -3m)\n  |> filter(fn: (r) => r._measurement == \"ups\" and r._field == \"on_battery\")\n  |> last()\n  |> max()",
           "datasource": {"type": "influxdb", "uid": "${datasource}"}
         },
         {
           "refId": "D",
-          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.source == \"cyberpower\")\n  |> last()\n  |> sum()",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: -3m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and (r.source == \"cyberpower\" or r.source == \"apcupsd\"))\n  |> last()\n  |> sum()",
           "datasource": {"type": "influxdb", "uid": "${datasource}"}
         }
       ]
