@@ -184,6 +184,57 @@ The script:
 
 ---
 
+## Synology NAS Agent
+
+Synology NAS devices don't support installing packages like Telegraf directly, but DSM includes Docker (Container Manager on DSM 7, Docker package on DSM 6). The agent runs Telegraf in a container that mounts the host's `/proc` and `/sys` so it can read real CPU, memory, disk, and network metrics.
+
+### Requirements
+
+- **DSM 7**: Container Manager installed from Package Center
+- **DSM 6**: Docker package installed from Package Center
+- SSH access enabled (Control Panel → Terminal & SNMP → Enable SSH service)
+
+### Install
+
+SSH into your Synology, then clone or copy the `agents/synology/` directory onto it and run:
+
+```bash
+bash agents/synology/install-synology.sh \
+  --server http://<SERVER_IP>:8086 \
+  --token  <WRITE_TOKEN> \
+  --role   synology
+```
+
+The `--role` value becomes the `host` label in Grafana. The script:
+- Substitutes your credentials into the config
+- Pulls the `telegraf:1.29-alpine` image
+- Starts the container with `restart: unless-stopped` (survives reboots)
+
+### Manage the container
+
+```bash
+# View logs
+docker logs telegraf-powermon -f
+
+# Stop
+docker compose -f agents/synology/docker-compose.live.yml down
+
+# Start
+docker compose -f agents/synology/docker-compose.live.yml up -d
+```
+
+### Power monitoring
+
+Synology doesn't expose power draw in software. For actual wattage, plug the NAS into a Shelly smart plug and add it on your Linux agent host:
+
+```bash
+sudo ./agents/shelly/add-shelly.sh --name synology --ip <SHELLY_IP>
+```
+
+This gives real measured power that shows up in all the Grafana power panels alongside the NAS system metrics.
+
+---
+
 ## Shelly Smart Plug Agent
 
 Monitor the real power draw of any device — NAS, router, printer, TV — by plugging it into a Shelly smart plug and adding it to Telegraf on an existing Linux agent host. No new machine required.
@@ -343,7 +394,11 @@ powermon/
     │   ├── install-windows.ps1
     │   └── scripts/
     │       └── windows-power.ps1
-    └── shelly/
-        ├── add-shelly.sh     # Add a Shelly plug: sudo ./add-shelly.sh --name X --ip Y
-        └── remove-shelly.sh  # Remove a plug:     sudo ./remove-shelly.sh --name X
+    ├── shelly/
+    │   ├── add-shelly.sh     # Add a Shelly plug: sudo ./add-shelly.sh --name X --ip Y
+    │   └── remove-shelly.sh  # Remove a plug:     sudo ./remove-shelly.sh --name X
+    └── synology/
+        ├── docker-compose.yml       # Container definition (template)
+        ├── telegraf-synology.conf   # Telegraf config (template)
+        └── install-synology.sh     # Run via SSH on the Synology
 ```

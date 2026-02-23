@@ -1,0 +1,33 @@
+version: "3.8"
+
+# Telegraf power/system monitoring agent for Synology NAS
+# Deploy via SSH: docker compose up -d
+# Or import this file in DSM Container Manager (DSM 7) / Docker (DSM 6)
+#
+# Run install-synology.sh to substitute credentials before deploying.
+
+services:
+  telegraf-powermon:
+    image: telegraf:1.29-alpine
+    container_name: telegraf-powermon
+    restart: unless-stopped
+
+    # Host networking is required for accurate network interface metrics
+    network_mode: host
+
+    volumes:
+      - ./telegraf-synology.conf:/etc/telegraf/telegraf.conf:ro
+      # Mount host /proc, /sys, /etc so Telegraf reads real NAS metrics
+      - /proc:/rootfs/proc:ro
+      - /sys:/rootfs/sys:ro
+      - /etc:/rootfs/etc:ro
+      - /:/rootfs:ro
+
+    environment:
+      # Tells Telegraf plugins where to find host filesystem paths
+      HOST_PROC: /rootfs/proc
+      HOST_SYS: /rootfs/sys
+      HOST_ETC: /rootfs/etc
+      HOST_MOUNT_PREFIX: /rootfs
+      # Device name shown in Grafana — set by install-synology.sh
+      SYNOLOGY_HOSTNAME: SYNOLOGY_HOSTNAME_HERE
