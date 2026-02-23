@@ -8,6 +8,7 @@
 #     --server http://<SERVER_IP>:8086 \
 #     --token  <WRITE_TOKEN> \
 #     --role   synology            # name shown in Grafana (default: synology)
+#     --tdp    13                  # CPU TDP in watts (default: 13 for Atom D525/K525)
 
 set -euo pipefail
 
@@ -16,6 +17,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVER_URL=""
 WRITE_TOKEN=""
 ROLE="synology"
+TDP=13
 
 # ── Strip carriage returns (safe copy-paste from Windows terminals) ────────────
 cleaned_args=()
@@ -26,7 +28,7 @@ set -- "${cleaned_args[@]+${cleaned_args[@]}}"
 
 # ── Parse arguments ────────────────────────────────────────────────────────────
 usage() {
-    echo "Usage: bash $0 --server http://HOST:8086 --token TOKEN [--role NAME]"
+    echo "Usage: bash $0 --server http://HOST:8086 --token TOKEN [--role NAME] [--tdp WATTS]"
     exit 1
 }
 
@@ -35,6 +37,7 @@ while [[ $# -gt 0 ]]; do
         --server) SERVER_URL="$2"; shift 2 ;;
         --token)  WRITE_TOKEN="$2"; shift 2 ;;
         --role)   ROLE="$2"; shift 2 ;;
+        --tdp)    TDP="$2";  shift 2 ;;
         *) echo "Unknown argument: $1"; usage ;;
     esac
 done
@@ -45,6 +48,7 @@ done
 echo "==> Installing Synology Telegraf agent"
 echo "    Server:   $SERVER_URL"
 echo "    Hostname: $ROLE"
+echo "    CPU TDP:  ${TDP}W"
 
 # ── Check Docker is available ──────────────────────────────────────────────────
 if ! command -v docker &>/dev/null; then
@@ -74,6 +78,7 @@ cp "$SCRIPT_DIR/docker-compose.yml"     "$SCRIPT_DIR/docker-compose.yml.tmp"
 sed -i "s|INFLUXDB_SERVER_URL|${SERVER_URL}|g"  "$SCRIPT_DIR/telegraf-synology.conf.tmp"
 sed -i "s|WRITE_TOKEN_HERE|${WRITE_TOKEN}|g"     "$SCRIPT_DIR/telegraf-synology.conf.tmp"
 sed -i "s|SYNOLOGY_HOSTNAME_HERE|${ROLE}|g"      "$SCRIPT_DIR/docker-compose.yml.tmp"
+sed -i "s|CPU_TDP_WATTS_HERE|${TDP}|g"           "$SCRIPT_DIR/docker-compose.yml.tmp"
 # Update the volume mount in docker-compose to point at the .live conf file
 sed -i "s|./telegraf-synology.conf:|./telegraf-synology.conf.live:|" "$SCRIPT_DIR/docker-compose.yml.tmp"
 

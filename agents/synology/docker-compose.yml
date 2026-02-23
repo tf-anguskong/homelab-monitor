@@ -17,6 +17,7 @@ services:
 
     volumes:
       - ./telegraf-synology.conf:/etc/telegraf/telegraf.conf:ro
+      - ./scripts:/scripts:ro
       # Mount host /proc, /sys, /etc so Telegraf reads real NAS metrics
       - /proc:/rootfs/proc:ro
       - /sys:/rootfs/sys:ro
@@ -31,3 +32,5 @@ services:
       HOST_MOUNT_PREFIX: /rootfs
       # Device name shown in Grafana — set by install-synology.sh
       SYNOLOGY_HOSTNAME: SYNOLOGY_HOSTNAME_HERE
+      # CPU TDP in watts used for power estimation — set by install-synology.sh
+      CPU_TDP_WATTS: CPU_TDP_WATTS_HERE
