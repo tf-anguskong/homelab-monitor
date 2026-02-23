@@ -97,6 +97,58 @@ bash agents/linux/scripts/rapl-power.sh
 
 ---
 
+## macOS Agent
+
+### Requirements
+- macOS 12 (Monterey) or later
+- Apple Silicon (M1/M2/M3) or Intel Mac
+- [Homebrew](https://brew.sh) installed
+- Run install script as root
+
+### Install
+
+```bash
+sudo ./agents/macos/install-macos.sh \
+  --server http://<SERVER_IP>:8086 \
+  --token <WRITE_TOKEN> \
+  --role my-macbook
+```
+
+The script:
+- Installs Telegraf via Homebrew if not already present
+- Deploys config and the `powermetrics` power script to `/usr/local/etc/telegraf/`
+- Creates a root LaunchDaemon at `/Library/LaunchDaemons/com.influxdata.telegraf.plist` so `powermetrics` can access hardware power counters
+- Starts the service automatically on boot
+
+### Test the power script standalone
+
+```bash
+sudo ./agents/macos/scripts/macos-power.sh
+# Apple Silicon output:
+# power,source=powermetrics,domain=cpu   watts=1.234
+# power,source=powermetrics,domain=gpu   watts=0.567
+# power,source=powermetrics,domain=total watts=1.801
+#
+# Intel Mac output:
+# power,source=powermetrics,domain=package watts=12.345
+# power,source=powermetrics,domain=total   watts=12.345
+```
+
+### Manage the service
+
+```bash
+# Stop
+sudo launchctl unload /Library/LaunchDaemons/com.influxdata.telegraf.plist
+
+# Start
+sudo launchctl load /Library/LaunchDaemons/com.influxdata.telegraf.plist
+
+# Logs
+tail -f /var/log/telegraf/telegraf.log
+```
+
+---
+
 ## Windows Agent
 
 ### Requirements
