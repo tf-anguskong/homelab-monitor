@@ -74,6 +74,8 @@ cp "$SCRIPT_DIR/docker-compose.yml"     "$SCRIPT_DIR/docker-compose.yml.tmp"
 sed -i "s|INFLUXDB_SERVER_URL|${SERVER_URL}|g"  "$SCRIPT_DIR/telegraf-synology.conf.tmp"
 sed -i "s|WRITE_TOKEN_HERE|${WRITE_TOKEN}|g"     "$SCRIPT_DIR/telegraf-synology.conf.tmp"
 sed -i "s|SYNOLOGY_HOSTNAME_HERE|${ROLE}|g"      "$SCRIPT_DIR/docker-compose.yml.tmp"
+# Update the volume mount in docker-compose to point at the .live conf file
+sed -i "s|./telegraf-synology.conf:|./telegraf-synology.conf.live:|" "$SCRIPT_DIR/docker-compose.yml.tmp"
 
 # Move configured files into place
 mv "$SCRIPT_DIR/telegraf-synology.conf.tmp" "$SCRIPT_DIR/telegraf-synology.conf.live"
