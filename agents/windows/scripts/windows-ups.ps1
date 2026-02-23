@@ -90,11 +90,22 @@ if ($PwrstatExe) {
 # ── Method 2: SQLite database (PowerPanel Personal v4+) ───────────────────────
 # Fastest method — queries PPPE_Db.db directly. Tried before REST API to avoid
 # slow port-scan timeouts when pppd is running but endpoints are unknown.
-# DeviceLog table columns (confirmed schema):
-#   LP       — Load in watts (e.g. 1000 on a 1500W UPS)
+#
+# DeviceLog table (battery status — updated every ~10s):
 #   BatCap   — Battery capacity % (e.g. 100.0)
 #   BatRun   — Runtime remaining in minutes (e.g. 55.0)
 #   PowSour  — Power source: 0 = AC mains, non-zero = on battery
+#   LP       — Internal CyberPower value; NOT reliable watts. Stores apparent
+#              power (VA) or a model-specific constant, not real output watts.
+#              OutCur (output current) is also NULL on USB HID for this model,
+#              so V*I cannot be computed either.
+#
+# EnergyConsumption table (real power — updated every ~60 minutes):
+#   consumption — Wh consumed in the most recently completed hour; since the
+#                 interval is exactly 1 hour, Wh == average watts for that hour.
+#                 Most accurate real-power figure available from PPPE_Db.db.
+#                 Values lag by up to ~1 hour; fine for trend/cost monitoring.
+#
 # Requires sqlite3.exe — install via: winget install SQLite.sqlite
 #   or it may already be present via Git for Windows / Chocolatey.
 if ($PPPDir -and -not $gotData) {
@@ -128,35 +139,45 @@ if ($PPPDir -and -not $gotData) {
                 $tempDb = "$env:TEMP\pppe_snapshot.db"
                 Copy-Item -Path $dbPath -Destination $tempDb -Force -ErrorAction Stop
 
-                $sql = "SELECT LP, BatCap, BatRun, PowSour FROM DeviceLog ORDER BY id DESC LIMIT 1;"
-                $row = & $sqlite3 -separator '|' $tempDb $sql 2>$null
-                Remove-Item $tempDb -Force -ErrorAction SilentlyContinue
-                if ($row) {
-                    $parts = @($row -split '\|')
-                    $lp = 0.0
-                    if ([double]::TryParse($parts[0],
-                            [System.Globalization.NumberStyles]::Any,
-                            [System.Globalization.CultureInfo]::InvariantCulture,
-                            [ref]$lp) -and $lp -gt 0) {
-                        $loadWatts = $lp
-                        $upsSource = 'cyberpower'
-                        $gotData   = $true
+                # Battery status from DeviceLog (updates every ~10s)
+                $sqlDev = "SELECT BatCap, BatRun, PowSour FROM DeviceLog ORDER BY id DESC LIMIT 1;"
+                $rowDev = & $sqlite3 -separator '|' $tempDb $sqlDev 2>$null
 
-                        $bv = 0.0
-                        if ($parts.Count -gt 1 -and [double]::TryParse($parts[1],
-                                [System.Globalization.NumberStyles]::Any,
-                                [System.Globalization.CultureInfo]::InvariantCulture, [ref]$bv)) {
-                            $batteryPct = [int]$bv
-                        }
-                        $rv = 0.0
-                        if ($parts.Count -gt 2 -and [double]::TryParse($parts[2],
-                                [System.Globalization.NumberStyles]::Any,
-                                [System.Globalization.CultureInfo]::InvariantCulture, [ref]$rv)) {
-                            $runtimeMin = [int]$rv
-                        }
-                        if ($parts.Count -gt 3) {
-                            $onBattery = if ($parts[3] -ne '0') { 1 } else { 0 }
-                        }
+                # Real power from EnergyConsumption (Wh per hour = average watts for that hour).
+                # LP in DeviceLog is not reliable real-power for USB HID models — see comment above.
+                $sqlEc  = "SELECT consumption FROM EnergyConsumption ORDER BY id DESC LIMIT 1;"
+                $rowEc  = & $sqlite3 -separator '|' $tempDb $sqlEc  2>$null
+
+                Remove-Item $tempDb -Force -ErrorAction SilentlyContinue
+
+                if ($rowDev) {
+                    $parts = @($rowDev -split '\|')
+                    $upsSource = 'cyberpower'
+                    $gotData   = $true
+
+                    $bv = 0.0
+                    if ($parts.Count -gt 0 -and [double]::TryParse($parts[0],
+                            [System.Globalization.NumberStyles]::Any,
+                            [System.Globalization.CultureInfo]::InvariantCulture, [ref]$bv)) {
+                        $batteryPct = [int]$bv
+                    }
+                    $rv = 0.0
+                    if ($parts.Count -gt 1 -and [double]::TryParse($parts[1],
+                            [System.Globalization.NumberStyles]::Any,
+                            [System.Globalization.CultureInfo]::InvariantCulture, [ref]$rv)) {
+                        $runtimeMin = [int]$rv
+                    }
+                    if ($parts.Count -gt 2) {
+                        $onBattery = if ($parts[2] -ne '0') { 1 } else { 0 }
+                    }
+                }
+
+                if ($rowEc) {
+                    $wv = 0.0
+                    if ([double]::TryParse($rowEc.Trim(),
+                            [System.Globalization.NumberStyles]::Any,
+                            [System.Globalization.CultureInfo]::InvariantCulture, [ref]$wv) -and $wv -gt 0) {
+                        $loadWatts = [math]::Round($wv, 1)
                     }
                 }
             } catch {}
