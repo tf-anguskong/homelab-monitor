@@ -359,7 +359,7 @@
       "type": "stat",
       "title": "Estimated Energy — Selected Period",
       "description": "Total energy consumed across all hosts for the selected dashboard time range. Calculated by integrating power (watts) over time. Accuracy depends on data collection interval (10s).",
-      "gridPos": {"h": 4, "w": 24, "x": 0, "y": 28},
+      "gridPos": {"h": 4, "w": 16, "x": 0, "y": 28},
       "options": {
         "colorMode": "background",
         "graphMode": "none",
@@ -393,6 +393,46 @@
           "datasource": {"type": "influxdb", "uid": "${datasource}"}
         }
       ]
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "Estimated Cost — Selected Period",
+      "description": "Estimated electricity cost for the selected time range across all hosts. Uses the price set in the 'Price ($/kWh)' variable above. Energy (Wh) ÷ 1000 × price per kWh.",
+      "gridPos": {"h": 4, "w": 8, "x": 16, "y": 28},
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "blue", "value": null},
+              {"color": "green", "value": 1},
+              {"color": "yellow", "value": 10},
+              {"color": "orange", "value": 50}
+            ]
+          },
+          "unit": "currencyUSD",
+          "mappings": [],
+          "decimals": 2
+        }
+      },
+      "datasource": {"type": "influxdb", "uid": "${datasource}"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> group(columns: [\"host\"])\n  |> integral(unit: 1h)\n  |> map(fn: (r) => ({r with _value: r._value / 1000.0 * ${electricity_price_kwh}}))\n  |> group()\n  |> sum()",
+          "datasource": {"type": "influxdb", "uid": "${datasource}"}
+        }
+      ]
     }
   ],
   "refresh": "10s",
@@ -410,6 +450,26 @@
         "refresh": 1,
         "type": "datasource",
         "label": "Data Source"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "0.12",
+          "value": "0.12"
+        },
+        "hide": 0,
+        "label": "Price ($/kWh)",
+        "name": "electricity_price_kwh",
+        "options": [
+          {
+            "selected": true,
+            "text": "0.12",
+            "value": "0.12"
+          }
+        ],
+        "query": "0.12",
+        "skipUrlSync": false,
+        "type": "textbox"
       }
     ]
   },

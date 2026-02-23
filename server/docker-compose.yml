@@ -39,6 +39,8 @@ services:
       INFLUXDB_TOKEN: ${INFLUXDB_ADMIN_TOKEN}
       INFLUXDB_ORG: ${INFLUXDB_ORG}
       INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
+      # Electricity price shown in Grafana cost panel (update in .env)
+      ELECTRICITY_PRICE_KWH: ${ELECTRICITY_PRICE_KWH:-0.12}
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
