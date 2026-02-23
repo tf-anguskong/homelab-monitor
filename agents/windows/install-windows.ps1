@@ -111,25 +111,35 @@ if (Test-Path $upsSrc) {
     Copy-Item -Path $upsSrc -Destination "$TelegrafScriptsDir\windows-ups.ps1" -Force
 }
 
-# sqlite3.exe — copy to Telegraf dir so the SYSTEM service account can find it.
+# sqlite3.exe -- copy to Telegraf dir so the SYSTEM service account can find it.
 # The UPS script queries PPPE_Db.db (CyberPower) via sqlite3.
 $sqlite3Dest = "$TelegrafInstallDir\sqlite3.exe"
 if (-not (Test-Path $sqlite3Dest)) {
     $sqlite3Src = $null
-    $s3InPath = Get-Command sqlite3.exe -ErrorAction SilentlyContinue
-    if ($s3InPath)                                                              { $sqlite3Src = $s3InPath.Source }
-    if (-not $sqlite3Src -and (Test-Path 'C:\Program Files\Git\usr\bin\sqlite3.exe'))           { $sqlite3Src = 'C:\Program Files\Git\usr\bin\sqlite3.exe' }
-    if (-not $sqlite3Src -and (Test-Path 'C:\Program Files (x86)\Git\usr\bin\sqlite3.exe'))     { $sqlite3Src = 'C:\Program Files (x86)\Git\usr\bin\sqlite3.exe' }
-    if (-not $sqlite3Src -and (Test-Path 'C:\ProgramData\chocolatey\bin\sqlite3.exe'))          { $sqlite3Src = 'C:\ProgramData\chocolatey\bin\sqlite3.exe' }
+    $s3p = Get-Command sqlite3.exe -ErrorAction SilentlyContinue
+    if ($s3p) {
+        $sqlite3Src = $s3p.Source
+    }
+    if (-not $sqlite3Src -and (Test-Path 'C:\Program Files\Git\usr\bin\sqlite3.exe')) {
+        $sqlite3Src = 'C:\Program Files\Git\usr\bin\sqlite3.exe'
+    }
+    if (-not $sqlite3Src -and (Test-Path 'C:\Program Files (x86)\Git\usr\bin\sqlite3.exe')) {
+        $sqlite3Src = 'C:\Program Files (x86)\Git\usr\bin\sqlite3.exe'
+    }
+    if (-not $sqlite3Src -and (Test-Path 'C:\ProgramData\chocolatey\bin\sqlite3.exe')) {
+        $sqlite3Src = 'C:\ProgramData\chocolatey\bin\sqlite3.exe'
+    }
     $wingetSqlite = "$env:LOCALAPPDATA\Microsoft\WinGet\Links\sqlite3.exe"
-    if (-not $sqlite3Src -and (Test-Path $wingetSqlite))                                        { $sqlite3Src = $wingetSqlite }
-
+    if (-not $sqlite3Src -and (Test-Path $wingetSqlite)) {
+        $sqlite3Src = $wingetSqlite
+    }
     if ($sqlite3Src) {
         Copy-Item -Path $sqlite3Src -Destination $sqlite3Dest -Force
         Write-Host "==> Copied sqlite3.exe to $TelegrafInstallDir"
-    } else {
-        Write-Host "    NOTE: sqlite3.exe not found — CyberPower UPS monitoring requires it."
-        Write-Host "    Install with: winget install SQLite.sqlite  then re-run this script."
+    }
+    if (-not $sqlite3Src) {
+        Write-Host "NOTE: sqlite3.exe not found. CyberPower UPS monitoring requires it."
+        Write-Host "Install with: winget install SQLite.sqlite  then re-run this script."
     }
 }
 
