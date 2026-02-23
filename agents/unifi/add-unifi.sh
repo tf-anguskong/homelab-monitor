@@ -25,7 +25,7 @@ PROC_FILE="$CONF_DIR/unifi-processors.conf"
 
 DEVICE_NAME=""
 DEVICE_IP=""
-COMMUNITY="public"
+COMMUNITY="${SNMP_COMMUNITY:-public}"
 POE=false
 
 # ── Strip carriage returns (safe copy-paste from Windows terminals) ────────────
