@@ -118,8 +118,14 @@ if ($PPPDir -and -not $gotData) {
 
         if ($sqlite3) {
             try {
+                # Copy DB to a temp file to avoid waiting on pppd.exe's write lock.
+                # Windows allows file copies even when another process has the file open.
+                $tempDb = "$env:TEMP\pppe_snapshot.db"
+                Copy-Item -Path $dbPath -Destination $tempDb -Force -ErrorAction Stop
+
                 $sql = "SELECT LP, BatCap, BatRun, PowSour FROM DeviceLog ORDER BY id DESC LIMIT 1;"
-                $row = & $sqlite3 -separator '|' $dbPath $sql 2>$null
+                $row = & $sqlite3 -separator '|' $tempDb $sql 2>$null
+                Remove-Item $tempDb -Force -ErrorAction SilentlyContinue
                 if ($row) {
                     $parts = @($row -split '\|')
                     $lp = 0.0
