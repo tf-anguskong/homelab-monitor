@@ -184,6 +184,45 @@ The script:
 
 ---
 
+## UniFi SNMP Agent
+
+Monitor UniFi network equipment (APs, switches, gateways) via SNMP. Runs on an existing Linux agent host — no new machine needed. Telegraf polls the devices over the network.
+
+Collects:
+- **Interface traffic** (bytes in/out per port) — all device types
+- **PoE consumed power** (`--poe` flag) — PoE switches only; appears automatically in all Grafana power panels
+
+### Prerequisites
+
+1. Enable SNMP on each UniFi device: **UniFi Network → Settings → Services → SNMP → Enable**
+2. Note the community string (default is `public`)
+3. The Linux agent host must be able to reach the device on UDP port 161
+
+### Add a device
+
+```bash
+# Access point or non-PoE switch (interface traffic only)
+sudo ./agents/unifi/add-unifi.sh --name unifi-ap-office --ip 192.168.1.3
+
+# PoE switch (interface traffic + total PoE power draw in dashboard)
+sudo ./agents/unifi/add-unifi.sh --name unifi-switch --ip 192.168.1.2 --poe
+
+# Custom SNMP community string
+sudo ./agents/unifi/add-unifi.sh --name unifi-gw --ip 192.168.1.1 --community homelab
+```
+
+Run once per device. Config is appended to `/etc/telegraf/telegraf.d/unifi.conf`. For PoE devices, a shared Starlark processor (`unifi-processors.conf`) is also written that converts the milliwatt reading to watts and routes it into the `power` measurement.
+
+### Remove a device
+
+```bash
+sudo ./agents/unifi/remove-unifi.sh --name unifi-ap-office
+```
+
+If the last PoE device is removed, the processor file is cleaned up automatically.
+
+---
+
 ## Synology NAS Agent
 
 Synology NAS devices don't support installing packages like Telegraf directly, but DSM includes Docker (Container Manager on DSM 7, Docker package on DSM 6). The agent runs Telegraf in a container that mounts the host's `/proc` and `/sys` so it can read real CPU, memory, disk, and network metrics.
@@ -399,6 +438,9 @@ powermon/
     ├── shelly/
     │   ├── add-shelly.sh     # Add a Shelly plug: sudo ./add-shelly.sh --name X --ip Y
     │   └── remove-shelly.sh  # Remove a plug:     sudo ./remove-shelly.sh --name X
+    ├── unifi/
+    │   ├── add-unifi.sh      # Add a UniFi device: sudo ./add-unifi.sh --name X --ip Y [--poe]
+    │   └── remove-unifi.sh   # Remove a device:    sudo ./remove-unifi.sh --name X
     └── synology/
         ├── docker-compose.yml       # Container definition (template)
         ├── telegraf-synology.conf   # Telegraf config (template)
