@@ -106,9 +106,14 @@ if ($PPPDir -and -not $gotData) {
         if ($s3found) { $sqlite3 = $s3found.Source }
         if (-not $sqlite3) {
             $s3Candidates = @(
+                # Telegraf install dir — recommended location (accessible to SYSTEM service)
+                'C:\Program Files\Telegraf\sqlite3.exe',
+                # Git for Windows
                 'C:\Program Files\Git\usr\bin\sqlite3.exe',
                 'C:\Program Files (x86)\Git\usr\bin\sqlite3.exe',
+                # Chocolatey
                 'C:\ProgramData\chocolatey\bin\sqlite3.exe',
+                # winget (user-level — only works when Telegraf runs as a user account)
                 "$env:LOCALAPPDATA\Microsoft\WinGet\Links\sqlite3.exe"
             )
             foreach ($c in $s3Candidates) {

@@ -105,10 +105,31 @@ $scriptSrc = Join-Path $ScriptDir 'scripts\windows-power.ps1'
 if (-not (Test-Path $scriptSrc)) { throw "windows-power.ps1 not found at: $scriptSrc" }
 Copy-Item -Path $scriptSrc -Destination "$TelegrafScriptsDir\windows-power.ps1" -Force
 
-# UPS script (CyberPower PowerPanel Personal — exits silently if not installed)
+# UPS script (CyberPower / APC — exits silently if no UPS detected)
 $upsSrc = Join-Path $ScriptDir 'scripts\windows-ups.ps1'
 if (Test-Path $upsSrc) {
     Copy-Item -Path $upsSrc -Destination "$TelegrafScriptsDir\windows-ups.ps1" -Force
+}
+
+# sqlite3.exe — copy to Telegraf dir so the SYSTEM service account can find it.
+# The UPS script queries PPPE_Db.db (CyberPower) via sqlite3.
+$sqlite3Dest = "$TelegrafInstallDir\sqlite3.exe"
+if (-not (Test-Path $sqlite3Dest)) {
+    $sqlite3Candidates = @(
+        (Get-Command sqlite3.exe -ErrorAction SilentlyContinue)?.Source,
+        'C:\Program Files\Git\usr\bin\sqlite3.exe',
+        'C:\Program Files (x86)\Git\usr\bin\sqlite3.exe',
+        'C:\ProgramData\chocolatey\bin\sqlite3.exe',
+        "$env:LOCALAPPDATA\Microsoft\WinGet\Links\sqlite3.exe"
+    ) | Where-Object { $_ -and (Test-Path $_) }
+    $sqlite3Src = $sqlite3Candidates | Select-Object -First 1
+    if ($sqlite3Src) {
+        Copy-Item -Path $sqlite3Src -Destination $sqlite3Dest -Force
+        Write-Host "==> Copied sqlite3.exe to $TelegrafInstallDir"
+    } else {
+        Write-Host "    NOTE: sqlite3.exe not found — CyberPower UPS monitoring requires it."
+        Write-Host "    Install with: winget install SQLite.sqlite  then re-run this script."
+    }
 }
 
 # ── Substitute placeholders ────────────────────────────────────────────────────
