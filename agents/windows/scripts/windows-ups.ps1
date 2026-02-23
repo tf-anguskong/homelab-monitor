@@ -7,9 +7,10 @@
 
     CyberPower (PowerPanel Personal):
       1. pwrstat.exe       — PowerPanel Personal v3.x and older
-      2. REST API port 3052— PowerPanel Personal v4+  (pppd.exe daemon)
-      3. SQLite DB         — PPPE_Db.db in app assets (v4+, requires sqlite3.exe)
+      2. SQLite DB         — PPPE_Db.db in app assets (v4+, requires sqlite3.exe)
                              Install sqlite3: winget install SQLite.sqlite
+                             Fastest method — tried before REST API to avoid timeouts
+      3. REST API port 3052— PowerPanel Personal v4+ fallback (pppd.exe daemon)
       4. ProgramData files — XML/JSON status written by pppd (last resort)
 
     APC:
@@ -86,74 +87,11 @@ if ($PwrstatExe) {
     } catch {}
 }
 
-# ── Method 2: REST API (PowerPanel Personal v4+) ──────────────────────────────
-# pppd.exe serves a local REST API — default port 3052, but try others if needed.
-if ($PPPDir -and -not $gotData) {
-    $apiPorts    = @(3052, 3000, 2266, 8080)
-    $apiPaths    = @('/local/v1/ups', '/api/v1/ups', '/api/ups', '/api/status')
-
-    :portLoop foreach ($port in $apiPorts) {
-        foreach ($path in $apiPaths) {
-            try {
-                $r = Invoke-WebRequest -Uri "http://localhost:$port$path" `
-                         -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
-                if ($r.StatusCode -ne 200 -or -not $r.Content) { continue }
-
-                $j = $r.Content | ConvertFrom-Json -ErrorAction Stop
-
-                # API may return an array of UPS devices; take the first
-                if ($j -is [array]) {
-                    if ($j.Count -eq 0) { continue }
-                    $j = $j[0]
-                }
-
-                # Try common field name conventions for load in watts
-                $wf = Get-Prop $j @('load_w','load_watts','loadWatts','watts','outputWatts','output_watts')
-                if ($null -eq $wf) {
-                    # Nested: { power: { watts: X } }
-                    $pwr = Get-Prop $j @('power','output','load')
-                    if ($pwr -is [System.Management.Automation.PSCustomObject]) {
-                        $wf = Get-Prop $pwr @('watts','load_w','load_watts','w')
-                    }
-                }
-                if ($null -eq $wf) { continue }
-
-                $loadWatts = [double]$wf
-
-                # Battery charge
-                $batt = Get-Prop $j @('battery_charge','batteryCharge','battery_capacity',
-                                       'batteryCapacity','battery_pct','battery_level','battery')
-                if ($batt -is [System.Management.Automation.PSCustomObject]) {
-                    $batt = Get-Prop $batt @('charge','capacity','percent','level')
-                }
-                if ($null -ne $batt) { $batteryPct = [int][double]$batt }
-
-                # Runtime remaining (may be seconds or minutes)
-                $rt = Get-Prop $j @('runtime_remaining','runtimeRemaining','runtime_sec',
-                                     'runtime_min','runtime','remaining_runtime')
-                if ($null -ne $rt) {
-                    $rtInt = [int][double]$rt
-                    # Values > 600 are almost certainly seconds, convert to minutes
-                    $runtimeMin = if ($rtInt -gt 600) { [int]($rtInt / 60) } else { $rtInt }
-                }
-
-                # On-battery flag
-                $src = Get-Prop $j @('power_source','powerSource','status','input_source','line_status')
-                $ob  = Get-Prop $j @('on_battery','onBattery','battery_mode','onBatt')
-                $onBattery = if (($src -match 'battery') -or ($ob -eq $true) -or ($ob -eq 1)) { 1 } else { 0 }
-
-                $gotData   = $true
-                $upsSource = 'cyberpower'
-                break portLoop
-            } catch {}
-        }
-    }
-}
-
-# ── Method 3: SQLite database (PowerPanel Personal v4+) ───────────────────────
+# ── Method 2: SQLite database (PowerPanel Personal v4+) ───────────────────────
+# Fastest method — queries PPPE_Db.db directly. Tried before REST API to avoid
+# slow port-scan timeouts when pppd is running but endpoints are unknown.
 # DeviceLog table columns (confirmed schema):
 #   LP       — Load in watts (e.g. 1000 on a 1500W UPS)
-#   RatPow   — Rated power in watts (e.g. 1500)
 #   BatCap   — Battery capacity % (e.g. 100.0)
 #   BatRun   — Runtime remaining in minutes (e.g. 55.0)
 #   PowSour  — Power source: 0 = AC mains, non-zero = on battery
@@ -210,6 +148,66 @@ if ($PPPDir -and -not $gotData) {
                         }
                     }
                 }
+            } catch {}
+        }
+    }
+}
+
+# ── Method 3: REST API (PowerPanel Personal v4+) ──────────────────────────────
+# Only reached if SQLite DB is unavailable. pppd.exe serves a local REST API —
+# default port 3052. Kept as fallback in case the DB path changes in future versions.
+if ($PPPDir -and -not $gotData) {
+    $apiPorts    = @(3052, 3000, 2266, 8080)
+    $apiPaths    = @('/local/v1/ups', '/api/v1/ups', '/api/ups', '/api/status')
+
+    :portLoop foreach ($port in $apiPorts) {
+        foreach ($path in $apiPaths) {
+            try {
+                $r = Invoke-WebRequest -Uri "http://localhost:$port$path" `
+                         -UseBasicParsing -TimeoutSec 1 -ErrorAction Stop
+                if ($r.StatusCode -ne 200 -or -not $r.Content) { continue }
+
+                $j = $r.Content | ConvertFrom-Json -ErrorAction Stop
+
+                # API may return an array of UPS devices; take the first
+                if ($j -is [array]) {
+                    if ($j.Count -eq 0) { continue }
+                    $j = $j[0]
+                }
+
+                # Try common field name conventions for load in watts
+                $wf = Get-Prop $j @('load_w','load_watts','loadWatts','watts','outputWatts','output_watts')
+                if ($null -eq $wf) {
+                    $pwr = Get-Prop $j @('power','output','load')
+                    if ($pwr -is [System.Management.Automation.PSCustomObject]) {
+                        $wf = Get-Prop $pwr @('watts','load_w','load_watts','w')
+                    }
+                }
+                if ($null -eq $wf) { continue }
+
+                $loadWatts = [double]$wf
+
+                $batt = Get-Prop $j @('battery_charge','batteryCharge','battery_capacity',
+                                       'batteryCapacity','battery_pct','battery_level','battery')
+                if ($batt -is [System.Management.Automation.PSCustomObject]) {
+                    $batt = Get-Prop $batt @('charge','capacity','percent','level')
+                }
+                if ($null -ne $batt) { $batteryPct = [int][double]$batt }
+
+                $rt = Get-Prop $j @('runtime_remaining','runtimeRemaining','runtime_sec',
+                                     'runtime_min','runtime','remaining_runtime')
+                if ($null -ne $rt) {
+                    $rtInt = [int][double]$rt
+                    $runtimeMin = if ($rtInt -gt 600) { [int]($rtInt / 60) } else { $rtInt }
+                }
+
+                $src = Get-Prop $j @('power_source','powerSource','status','input_source','line_status')
+                $ob  = Get-Prop $j @('on_battery','onBattery','battery_mode','onBatt')
+                $onBattery = if (($src -match 'battery') -or ($ob -eq $true) -or ($ob -eq 1)) { 1 } else { 0 }
+
+                $gotData   = $true
+                $upsSource = 'cyberpower'
+                break portLoop
             } catch {}
         }
     }
