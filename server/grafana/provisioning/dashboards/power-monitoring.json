@@ -451,6 +451,113 @@
           "datasource": {"type": "influxdb", "uid": "${datasource}"}
         }
       ]
+    },
+    {
+      "id": 13,
+      "type": "stat",
+      "title": "UPS Status",
+      "description": "CyberPower UPS — battery level, runtime remaining, power source, and current load. Requires PowerPanel Personal to be installed on the Windows host.",
+      "gridPos": {"h": 4, "w": 24, "x": 0, "y": 32},
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": []
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byFrameRefID", "options": "A"},
+            "properties": [
+              {"id": "displayName", "value": "Battery"},
+              {"id": "unit", "value": "percent"},
+              {"id": "min", "value": 0},
+              {"id": "max", "value": 100},
+              {"id": "thresholds", "value": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "red", "value": null},
+                  {"color": "yellow", "value": 50},
+                  {"color": "green", "value": 80}
+                ]
+              }}
+            ]
+          },
+          {
+            "matcher": {"id": "byFrameRefID", "options": "B"},
+            "properties": [
+              {"id": "displayName", "value": "Runtime"},
+              {"id": "unit", "value": "s"},
+              {"id": "thresholds", "value": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "red", "value": null},
+                  {"color": "yellow", "value": 900},
+                  {"color": "green", "value": 1800}
+                ]
+              }}
+            ]
+          },
+          {
+            "matcher": {"id": "byFrameRefID", "options": "C"},
+            "properties": [
+              {"id": "displayName", "value": "Power Source"},
+              {"id": "thresholds", "value": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}},
+              {"id": "mappings", "value": [
+                {"type": "value", "options": {
+                  "0": {"text": "AC Power",   "color": "green",  "index": 0},
+                  "1": {"text": "On Battery", "color": "orange", "index": 1}
+                }}
+              ]}
+            ]
+          },
+          {
+            "matcher": {"id": "byFrameRefID", "options": "D"},
+            "properties": [
+              {"id": "displayName", "value": "UPS Load"},
+              {"id": "unit", "value": "watt"},
+              {"id": "decimals", "value": 0},
+              {"id": "thresholds", "value": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 500},
+                  {"color": "red", "value": 900}
+                ]
+              }}
+            ]
+          }
+        ]
+      },
+      "datasource": {"type": "influxdb", "uid": "${datasource}"},
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"ups\" and r._field == \"battery_pct\")\n  |> last()\n  |> min()",
+          "datasource": {"type": "influxdb", "uid": "${datasource}"}
+        },
+        {
+          "refId": "B",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"ups\" and r._field == \"runtime_min\")\n  |> last()\n  |> min()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) * 60.0}))",
+          "datasource": {"type": "influxdb", "uid": "${datasource}"}
+        },
+        {
+          "refId": "C",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"ups\" and r._field == \"on_battery\")\n  |> last()\n  |> max()",
+          "datasource": {"type": "influxdb", "uid": "${datasource}"}
+        },
+        {
+          "refId": "D",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.source == \"cyberpower\")\n  |> last()\n  |> sum()",
+          "datasource": {"type": "influxdb", "uid": "${datasource}"}
+        }
+      ]
     }
   ],
   "refresh": "10s",
