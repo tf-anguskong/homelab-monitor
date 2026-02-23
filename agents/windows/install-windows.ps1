@@ -105,6 +105,12 @@ $scriptSrc = Join-Path $ScriptDir 'scripts\windows-power.ps1'
 if (-not (Test-Path $scriptSrc)) { throw "windows-power.ps1 not found at: $scriptSrc" }
 Copy-Item -Path $scriptSrc -Destination "$TelegrafScriptsDir\windows-power.ps1" -Force
 
+# UPS script (CyberPower PowerPanel Personal — exits silently if not installed)
+$upsSrc = Join-Path $ScriptDir 'scripts\windows-ups.ps1'
+if (Test-Path $upsSrc) {
+    Copy-Item -Path $upsSrc -Destination "$TelegrafScriptsDir\windows-ups.ps1" -Force
+}
+
 # ── Substitute placeholders ────────────────────────────────────────────────────
 Write-Host "==> Substituting server URL and token in config"
 $confContent = Get-Content -Path $TelegrafConf -Raw
