@@ -115,15 +115,15 @@ if (Test-Path $upsSrc) {
 # The UPS script queries PPPE_Db.db (CyberPower) via sqlite3.
 $sqlite3Dest = "$TelegrafInstallDir\sqlite3.exe"
 if (-not (Test-Path $sqlite3Dest)) {
-    $sqlite3InPath = Get-Command sqlite3.exe -ErrorAction SilentlyContinue
-    $sqlite3Candidates = @(
-        $(if ($sqlite3InPath) { $sqlite3InPath.Source } else { $null }),
-        'C:\Program Files\Git\usr\bin\sqlite3.exe',
-        'C:\Program Files (x86)\Git\usr\bin\sqlite3.exe',
-        'C:\ProgramData\chocolatey\bin\sqlite3.exe',
-        "$env:LOCALAPPDATA\Microsoft\WinGet\Links\sqlite3.exe"
-    ) | Where-Object { $_ -and (Test-Path $_) }
-    $sqlite3Src = $sqlite3Candidates | Select-Object -First 1
+    $sqlite3Src = $null
+    $s3InPath = Get-Command sqlite3.exe -ErrorAction SilentlyContinue
+    if ($s3InPath)                                                              { $sqlite3Src = $s3InPath.Source }
+    if (-not $sqlite3Src -and (Test-Path 'C:\Program Files\Git\usr\bin\sqlite3.exe'))           { $sqlite3Src = 'C:\Program Files\Git\usr\bin\sqlite3.exe' }
+    if (-not $sqlite3Src -and (Test-Path 'C:\Program Files (x86)\Git\usr\bin\sqlite3.exe'))     { $sqlite3Src = 'C:\Program Files (x86)\Git\usr\bin\sqlite3.exe' }
+    if (-not $sqlite3Src -and (Test-Path 'C:\ProgramData\chocolatey\bin\sqlite3.exe'))          { $sqlite3Src = 'C:\ProgramData\chocolatey\bin\sqlite3.exe' }
+    $wingetSqlite = "$env:LOCALAPPDATA\Microsoft\WinGet\Links\sqlite3.exe"
+    if (-not $sqlite3Src -and (Test-Path $wingetSqlite))                                        { $sqlite3Src = $wingetSqlite }
+
     if ($sqlite3Src) {
         Copy-Item -Path $sqlite3Src -Destination $sqlite3Dest -Force
         Write-Host "==> Copied sqlite3.exe to $TelegrafInstallDir"
