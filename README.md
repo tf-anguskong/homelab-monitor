@@ -199,11 +199,13 @@ Synology NAS devices don't support installing packages like Telegraf directly, b
 SSH into your Synology, then clone or copy the `agents/synology/` directory onto it and run:
 
 ```bash
-bash agents/synology/install-synology.sh \
+sudo bash agents/synology/install-synology.sh \
   --server http://<SERVER_IP>:8086 \
   --token  <WRITE_TOKEN> \
   --role   synology
 ```
+
+`sudo` is required because the Docker socket on Synology is only accessible as root.
 
 The `--role` value becomes the `host` label in Grafana. The script:
 - Substitutes your credentials into the config
