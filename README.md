@@ -184,6 +184,50 @@ The script:
 
 ---
 
+## Shelly Smart Plug Agent
+
+Monitor the real power draw of any device — NAS, router, printer, TV — by plugging it into a Shelly smart plug and adding it to Telegraf on an existing Linux agent host. No new machine required.
+
+Shelly plug data uses the same `host` tag and `domain=total` field as the other agents, so it appears automatically in all Grafana power panels.
+
+### Requirements
+
+- A Linux host with the Telegraf agent already installed (from the Linux agent install above)
+- Shelly smart plug reachable over LAN from that host
+- Run scripts as root
+
+### Add a device
+
+```bash
+# Gen 1 Shelly (Shelly Plug S, Shelly 1PM, etc.)
+sudo ./agents/shelly/add-shelly.sh --name synology-nas --ip 192.168.1.51
+
+# Gen 2+ Shelly (Shelly Plus Plug, Shelly Pro, etc.)
+sudo ./agents/shelly/add-shelly.sh --name living-room-tv --ip 192.168.1.52 --gen 2
+```
+
+Run the command once per device. Each call appends one polling block to `/etc/telegraf/telegraf.d/shellys.conf` and restarts Telegraf. The device name becomes the `host` label in Grafana.
+
+**Which generation is my Shelly?** Gen 1 devices have a web UI at `http://<ip>/meter/0`. If that returns `{"power":...}` it's Gen 1. Gen 2 devices respond at `http://<ip>/rpc/Switch.GetStatus?id=0` with `{"apower":...}`.
+
+### Remove a device
+
+```bash
+sudo ./agents/shelly/remove-shelly.sh --name living-room-tv
+```
+
+### Synology NAS power
+
+The simplest and most accurate approach is a Shelly plug on the Synology's power cord:
+
+```bash
+sudo ./agents/shelly/add-shelly.sh --name synology --ip 192.168.1.51
+```
+
+This gives real measured wattage with no software changes to the NAS. If you also want CPU/RAM/disk metrics from the Synology itself, you can run Telegraf in a Docker container via DSM's Container Manager — but that's optional and separate from power monitoring.
+
+---
+
 ## Grafana Dashboard
 
 The "Homelab Power Monitoring" dashboard is pre-provisioned and loads automatically. Navigate to **Dashboards** in the sidebar.
@@ -289,9 +333,17 @@ powermon/
     │   ├── install-linux.sh
     │   └── scripts/
     │       └── rapl-power.sh
-    └── windows/
-        ├── telegraf-windows.conf
-        ├── install-windows.ps1
-        └── scripts/
-            └── windows-power.ps1
+    ├── macos/
+    │   ├── telegraf-macos.conf
+    │   ├── install-macos.sh
+    │   └── scripts/
+    │       └── macos-power.sh
+    ├── windows/
+    │   ├── telegraf-windows.conf
+    │   ├── install-windows.ps1
+    │   └── scripts/
+    │       └── windows-power.ps1
+    └── shelly/
+        ├── add-shelly.sh     # Add a Shelly plug: sudo ./add-shelly.sh --name X --ip Y
+        └── remove-shelly.sh  # Remove a plug:     sudo ./remove-shelly.sh --name X
 ```
