@@ -151,7 +151,12 @@ if ($PPPDir -and -not $gotData) {
 }
 
 # ── Method 3: SQLite database (PowerPanel Personal v4+) ───────────────────────
-# pppd keeps live UPS state in PPPE_Db.db inside the app's assets folder.
+# DeviceLog table columns (confirmed schema):
+#   LP       — Load in watts (e.g. 1000 on a 1500W UPS)
+#   RatPow   — Rated power in watts (e.g. 1500)
+#   BatCap   — Battery capacity % (e.g. 100.0)
+#   BatRun   — Runtime remaining in minutes (e.g. 55.0)
+#   PowSour  — Power source: 0 = AC mains, non-zero = on battery
 # Requires sqlite3.exe — install via: winget install SQLite.sqlite
 #   or it may already be present via Git for Windows / Chocolatey.
 if ($PPPDir -and -not $gotData) {
@@ -175,66 +180,34 @@ if ($PPPDir -and -not $gotData) {
 
         if ($sqlite3) {
             try {
-                # Discover tables, then find one with load/power data
-                $tables = (& $sqlite3 $dbPath '.tables' 2>$null) -split '\s+' |
-                          Where-Object { $_ }
-
-                foreach ($tbl in $tables) {
-                    # Get column names via PRAGMA
-                    $colLines = & $sqlite3 $dbPath "PRAGMA table_info('$tbl');" 2>$null
-                    $colNames = @($colLines | ForEach-Object { ($_ -split '\|')[1] })
-
-                    # Match columns by purpose
-                    $loadCol = $colNames | Where-Object { $_ -match '(?i)load|watt|power' } |
-                               Select-Object -First 1
-                    $battCol = $colNames | Where-Object { $_ -match '(?i)batt|charge|capacity' } |
-                               Select-Object -First 1
-                    $rtCol   = $colNames | Where-Object { $_ -match '(?i)runtime|remaining|time' } |
-                               Select-Object -First 1
-                    $stCol   = $colNames | Where-Object { $_ -match '(?i)status|source|supply' } |
-                               Select-Object -First 1
-
-                    if (-not $loadCol) { continue }
-
-                    $selectCols = $loadCol
-                    if ($battCol) { $selectCols += ",$battCol" }
-                    if ($rtCol)   { $selectCols += ",$rtCol"   }
-                    if ($stCol)   { $selectCols += ",$stCol"   }
-
-                    $row = & $sqlite3 -separator '|' $dbPath `
-                           "SELECT $selectCols FROM '$tbl' ORDER BY rowid DESC LIMIT 1;" 2>$null
-
-                    if (-not $row) { continue }
+                $sql = "SELECT LP, BatCap, BatRun, PowSour FROM DeviceLog ORDER BY id DESC LIMIT 1;"
+                $row = & $sqlite3 -separator '|' $dbPath $sql 2>$null
+                if ($row) {
                     $parts = @($row -split '\|')
-
-                    $v = 0.0
+                    $lp = 0.0
                     if ([double]::TryParse($parts[0],
                             [System.Globalization.NumberStyles]::Any,
                             [System.Globalization.CultureInfo]::InvariantCulture,
-                            [ref]$v) -and $v -gt 0 -and $v -lt 10000) {
-
-                        $loadWatts = $v
+                            [ref]$lp) -and $lp -gt 0) {
+                        $loadWatts = $lp
                         $upsSource = 'cyberpower'
                         $gotData   = $true
 
-                        if ($parts.Count -gt 1 -and $parts[1]) {
-                            $bv = 0.0
-                            if ([double]::TryParse($parts[1], [System.Globalization.NumberStyles]::Any,
-                                    [System.Globalization.CultureInfo]::InvariantCulture, [ref]$bv)) {
-                                $batteryPct = [int]$bv
-                            }
+                        $bv = 0.0
+                        if ($parts.Count -gt 1 -and [double]::TryParse($parts[1],
+                                [System.Globalization.NumberStyles]::Any,
+                                [System.Globalization.CultureInfo]::InvariantCulture, [ref]$bv)) {
+                            $batteryPct = [int]$bv
                         }
-                        if ($parts.Count -gt 2 -and $parts[2]) {
-                            $rv = 0.0
-                            if ([double]::TryParse($parts[2], [System.Globalization.NumberStyles]::Any,
-                                    [System.Globalization.CultureInfo]::InvariantCulture, [ref]$rv)) {
-                                $runtimeMin = [int]$rv
-                            }
+                        $rv = 0.0
+                        if ($parts.Count -gt 2 -and [double]::TryParse($parts[2],
+                                [System.Globalization.NumberStyles]::Any,
+                                [System.Globalization.CultureInfo]::InvariantCulture, [ref]$rv)) {
+                            $runtimeMin = [int]$rv
                         }
-                        if ($parts.Count -gt 3 -and $parts[3]) {
-                            $onBattery = if ($parts[3] -match '(?i)batt') { 1 } else { 0 }
+                        if ($parts.Count -gt 3) {
+                            $onBattery = if ($parts[3] -ne '0') { 1 } else { 0 }
                         }
-                        break
                     }
                 }
             } catch {}
