@@ -115,8 +115,9 @@ if (Test-Path $upsSrc) {
 # The UPS script queries PPPE_Db.db (CyberPower) via sqlite3.
 $sqlite3Dest = "$TelegrafInstallDir\sqlite3.exe"
 if (-not (Test-Path $sqlite3Dest)) {
+    $sqlite3InPath = Get-Command sqlite3.exe -ErrorAction SilentlyContinue
     $sqlite3Candidates = @(
-        (Get-Command sqlite3.exe -ErrorAction SilentlyContinue)?.Source,
+        $(if ($sqlite3InPath) { $sqlite3InPath.Source } else { $null }),
         'C:\Program Files\Git\usr\bin\sqlite3.exe',
         'C:\Program Files (x86)\Git\usr\bin\sqlite3.exe',
         'C:\ProgramData\chocolatey\bin\sqlite3.exe',
