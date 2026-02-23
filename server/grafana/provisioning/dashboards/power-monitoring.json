@@ -169,7 +169,7 @@
       "type": "timeseries",
       "title": "Power per Host",
       "description": "Total power draw over time, one line per reporting host",
-      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 4},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8},
       "options": {
         "legend": {"calcs": ["mean", "max", "lastNotNull"], "displayMode": "table", "placement": "bottom"},
         "tooltip": {"mode": "multi", "sort": "desc"}
@@ -200,7 +200,7 @@
       "type": "barchart",
       "title": "Current Power by Host",
       "description": "Latest total power draw per host. All agent types shown (RAPL, WMI, powermetrics, TDP estimate, Shelly).",
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 16},
       "options": {
         "barWidth": 0.6,
         "groupWidth": 0.7,
@@ -229,7 +229,7 @@
       "type": "table",
       "title": "Current Power by Host",
       "description": "Latest power and total energy consumed per host for the selected time range",
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 16},
       "options": {
         "footer": {"show": false},
         "sortBy": [{"displayName": "Current (W)", "desc": true}]
@@ -294,7 +294,7 @@
       "id": 8,
       "type": "timeseries",
       "title": "CPU Usage per Host",
-      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 20},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 24},
       "options": {
         "legend": {"calcs": ["mean"], "displayMode": "list", "placement": "bottom"},
         "tooltip": {"mode": "multi", "sort": "desc"}
@@ -322,7 +322,7 @@
       "id": 9,
       "type": "timeseries",
       "title": "Memory Usage per Host",
-      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 20},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 24},
       "options": {
         "legend": {"calcs": ["mean"], "displayMode": "list", "placement": "bottom"},
         "tooltip": {"mode": "multi", "sort": "desc"}
@@ -350,7 +350,7 @@
       "id": 10,
       "type": "timeseries",
       "title": "Network I/O per Host",
-      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 20},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 24},
       "options": {
         "legend": {"calcs": ["mean"], "displayMode": "list", "placement": "bottom"},
         "tooltip": {"mode": "multi", "sort": "desc"}
@@ -377,7 +377,7 @@
       "type": "stat",
       "title": "Estimated Energy — Selected Period",
       "description": "Total energy consumed across all hosts for the selected dashboard time range. Calculated by integrating power (watts) over time. Accuracy depends on data collection interval (10s).",
-      "gridPos": {"h": 4, "w": 16, "x": 0, "y": 28},
+      "gridPos": {"h": 4, "w": 16, "x": 0, "y": 4},
       "options": {
         "colorMode": "background",
         "graphMode": "none",
@@ -417,7 +417,7 @@
       "type": "stat",
       "title": "Estimated Cost — Selected Period",
       "description": "Estimated electricity cost for the selected time range across all hosts. Uses the price set in the 'Price ($/kWh)' variable above. Energy (Wh) ÷ 1000 × price per kWh.",
-      "gridPos": {"h": 4, "w": 8, "x": 16, "y": 28},
+      "gridPos": {"h": 4, "w": 8, "x": 16, "y": 4},
       "options": {
         "colorMode": "background",
         "graphMode": "none",
@@ -457,7 +457,7 @@
       "type": "stat",
       "title": "UPS Status",
       "description": "UPS — battery level, runtime remaining, power source, and current load. Supports CyberPower (PowerPanel Personal) and APC (apcupsd).",
-      "gridPos": {"h": 4, "w": 24, "x": 0, "y": 32},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 16},
       "options": {
         "colorMode": "background",
         "graphMode": "none",
