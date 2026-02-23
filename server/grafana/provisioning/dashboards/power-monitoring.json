@@ -219,7 +219,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain != \"total\")\n  |> last()\n  |> group(columns: [\"host\", \"domain\"])\n  |> mean()\n  |> group()",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain != \"total\")\n  |> group(columns: [\"host\", \"domain\"])\n  |> last()",
           "datasource": {"type": "influxdb", "uid": "${datasource}"}
         }
       ]
@@ -258,7 +258,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> last()\n  |> rename(columns: {_value: \"Watts\", host: \"Host\"})\n  |> keep(columns: [\"Host\", \"Watts\"])",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> group(columns: [\"host\"])\n  |> last()\n  |> group()",
           "datasource": {"type": "influxdb", "uid": "${datasource}"}
         }
       ]
