@@ -219,7 +219,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain != \"total\")\n  |> group(columns: [\"host\", \"domain\"])\n  |> last()",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain != \"total\")\n  |> group(columns: [\"host\", \"domain\"])\n  |> last()\n  |> group()\n  |> pivot(rowKey: [\"host\"], columnKey: [\"domain\"], valueColumn: \"_value\")",
           "datasource": {"type": "influxdb", "uid": "${datasource}"}
         }
       ]
@@ -250,7 +250,16 @@
         "overrides": [
           {
             "matcher": {"id": "byName", "options": "Watts"},
-            "properties": [{"id": "unit", "value": "watt"}]
+            "properties": [
+              {"id": "unit", "value": "watt"},
+              {"id": "decimals", "value": 1}
+            ]
+          },
+          {
+            "matcher": {"id": "byName", "options": "Host"},
+            "properties": [
+              {"id": "custom.width", "value": 200}
+            ]
           }
         ]
       },
@@ -258,7 +267,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> group(columns: [\"host\"])\n  |> last()\n  |> group()",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> group(columns: [\"host\"])\n  |> last()\n  |> group()\n  |> map(fn: (r) => ({Host: r.host, Watts: r._value}))",
           "datasource": {"type": "influxdb", "uid": "${datasource}"}
         }
       ]
