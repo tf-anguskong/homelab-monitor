@@ -65,6 +65,32 @@ services:
     depends_on:
       - nginx
 
+  finance-collector:
+    build:
+      context: ../agents/finance
+      dockerfile: Dockerfile
+    container_name: finance-collector
+    restart: unless-stopped
+    environment:
+      # Override to reach InfluxDB via Docker service name
+      INFLUXDB_URL: http://influxdb:8086
+      INFLUXDB_TOKEN: ${INFLUXDB_ADMIN_TOKEN}
+      INFLUXDB_ORG: ${INFLUXDB_ORG}
+      INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
+      # Schwab token file path inside the container
+      SCHWAB_TOKEN_FILE: /secrets/schwab_token.json
+    env_file:
+      # Loads all SCHWAB_*, ROBINHOOD_*, PLAID_* vars (including PLAID_ACCESS_TOKEN_n)
+      - .env
+    volumes:
+      # Persist Schwab OAuth token across container restarts.
+      # After running schwab_setup.py on the host, copy the token here:
+      #   cp /path/to/schwab_token.json server/finance-secrets/schwab_token.json
+      - ./finance-secrets:/secrets
+    depends_on:
+      influxdb:
+        condition: service_healthy
+
 volumes:
   influxdb_data:
   influxdb_config:
