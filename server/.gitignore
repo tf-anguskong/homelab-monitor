@@ -1,4 +1,1 @@
 .env
-# Finance secrets (Schwab token, etc.) — never commit real tokens
-finance-secrets/*
-!finance-secrets/.gitkeep

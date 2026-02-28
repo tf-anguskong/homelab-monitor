@@ -1,8 +1,0 @@
-schwab-py
-robin_stocks
-plaid-python>=28.0.0
-influxdb-client
-flask
-pyotp
-python-dotenv
-requests
