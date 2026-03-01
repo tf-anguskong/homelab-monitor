@@ -119,7 +119,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> filter(fn: (r) => r.host !~ /^(TFLEMING-MAY25)$/)\n  |> filter(fn: (r) => r.host =~ /^(${host_filter:regex})$/)\n  |> last()\n  |> group()\n  |> sum()",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> filter(fn: (r) => r.host !~ /^(TFLEMING-MAY25)$/)\n  |> last()\n  |> group()\n  |> sum()",
           "datasource": {
             "type": "influxdb",
             "uid": "influxdb"
@@ -185,7 +185,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> filter(fn: (r) => r.host !~ /^(TFLEMING-MAY25)$/)\n  |> filter(fn: (r) => r.host =~ /^(${host_filter:regex})$/)\n  |> last()\n  |> group()\n  |> count()",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> filter(fn: (r) => r.host !~ /^(TFLEMING-MAY25)$/)\n  |> last()\n  |> group()\n  |> count()",
           "datasource": {
             "type": "influxdb",
             "uid": "influxdb"
@@ -235,7 +235,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"powermon\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> filter(fn: (r) => r.host !~ /^(TFLEMING-MAY25)$/)\n  |> filter(fn: (r) => r.host =~ /^(${host_filter:regex})$/)\n  |> group()\n  |> aggregateWindow(every: 1m, fn: sum, createEmpty: false)\n  |> max()",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> filter(fn: (r) => r.host !~ /^(TFLEMING-MAY25)$/)\n  |> group()\n  |> aggregateWindow(every: 1m, fn: sum, createEmpty: false)\n  |> max()",
           "datasource": {
             "type": "influxdb",
             "uid": "influxdb"
@@ -285,7 +285,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"powermon\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> filter(fn: (r) => r.host !~ /^(TFLEMING-MAY25)$/)\n  |> filter(fn: (r) => r.host =~ /^(${host_filter:regex})$/)\n  |> group()\n  |> aggregateWindow(every: 1m, fn: sum, createEmpty: false)\n  |> mean()",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> filter(fn: (r) => r.host !~ /^(TFLEMING-MAY25)$/)\n  |> group()\n  |> aggregateWindow(every: 1m, fn: sum, createEmpty: false)\n  |> mean()",
           "datasource": {
             "type": "influxdb",
             "uid": "influxdb"
@@ -340,7 +340,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "others = from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\" and r.host != \"TFLEMING-MAY25\" and r.host != \"tfleming-may25-ups\")\n  |> filter(fn: (r) => r.host =~ /^(${host_filter:regex})$/)\n  |> group(columns: [\"host\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\ndesktop = from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\" and r.host == \"TFLEMING-MAY25\")\n  |> filter(fn: (r) => r.host =~ /^(${host_filter:regex})$/)\n  |> group(columns: [\"host\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\ndeskw = from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\" and r.host == \"TFLEMING-MAY25\")\n  |> filter(fn: (r) => r.host =~ /^(${host_filter:regex})$/)\n  |> group()\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> rename(columns: {_value: \"dw\"})\nupsw = from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\" and r.host == \"tfleming-may25-ups\")\n  |> group()\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> rename(columns: {_value: \"uw\"})\nupsOverhead = join(tables: {d: deskw, u: upsw}, on: [\"_time\"])\n  |> map(fn: (r) => ({_time: r._time, _value: if r.uw - r.dw > 0.0 then r.uw - r.dw else 0.0, host: \"tfleming-may25-ups\"}))\n  |> group(columns: [\"host\"])\nunion(tables: [others, desktop, upsOverhead])\n  |> yield(name: \"mean\")",
+          "query": "others = from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\" and r.host != \"TFLEMING-MAY25\" and r.host != \"tfleming-may25-ups\")\n  |> group(columns: [\"host\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\ndesktop = from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\" and r.host == \"TFLEMING-MAY25\")\n  |> group(columns: [\"host\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\ndeskw = from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\" and r.host == \"TFLEMING-MAY25\")\n  |> group()\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> rename(columns: {_value: \"dw\"})\nupsw = from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\" and r.host == \"tfleming-may25-ups\")\n  |> group()\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> rename(columns: {_value: \"uw\"})\nupsOverhead = join(tables: {d: deskw, u: upsw}, on: [\"_time\"])\n  |> map(fn: (r) => ({_time: r._time, _value: if r.uw - r.dw > 0.0 then r.uw - r.dw else 0.0, host: \"tfleming-may25-ups\"}))\n  |> group(columns: [\"host\"])\nunion(tables: [others, desktop, upsOverhead])\n  |> yield(name: \"mean\")",
           "datasource": {
             "type": "influxdb",
             "uid": "influxdb"
@@ -387,7 +387,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "desktopW = (from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\" and r.host == \"TFLEMING-MAY25\")\n  |> group()\n  |> last()\n  |> findRecord(fn: (key) => true, idx: 0))._value\nnonUps = from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\" and r.host != \"tfleming-may25-ups\")\n  |> filter(fn: (r) => r.host =~ /^(${host_filter:regex})$/)\n  |> group(columns: [\"host\", \"domain\"])\n  |> last()\nupsRow = from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\" and r.host == \"tfleming-may25-ups\")\n  |> filter(fn: (r) => r.host =~ /^(${host_filter:regex})$/)\n  |> group(columns: [\"host\", \"domain\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: if r._value - desktopW > 0.0 then r._value - desktopW else 0.0}))\nunion(tables: [nonUps, upsRow])\n  |> group()\n  |> pivot(rowKey: [\"host\"], columnKey: [\"domain\"], valueColumn: \"_value\")",
+          "query": "desktopW = (from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\" and r.host == \"TFLEMING-MAY25\")\n  |> group()\n  |> last()\n  |> findRecord(fn: (key) => true, idx: 0))._value\nnonUps = from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\" and r.host != \"tfleming-may25-ups\")\n  |> group(columns: [\"host\", \"domain\"])\n  |> last()\nupsRow = from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\" and r.host == \"tfleming-may25-ups\")\n  |> group(columns: [\"host\", \"domain\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: if r._value - desktopW > 0.0 then r._value - desktopW else 0.0}))\nunion(tables: [nonUps, upsRow])\n  |> group()\n  |> pivot(rowKey: [\"host\"], columnKey: [\"domain\"], valueColumn: \"_value\")",
           "datasource": {
             "type": "influxdb",
             "uid": "influxdb"
@@ -504,7 +504,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "desktopW = (from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\" and r.host == \"TFLEMING-MAY25\")\n  |> group()\n  |> last()\n  |> findRecord(fn: (key) => true, idx: 0))._value\nnonUps = from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\" and r.host != \"tfleming-may25-ups\")\n  |> filter(fn: (r) => r.host =~ /^(${host_filter:regex})$/)\n  |> group(columns: [\"host\"])\n  |> last()\n  |> group()\n  |> map(fn: (r) => ({Host: r.host, \"Current (W)\": r._value}))\nupsRow = from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\" and r.host == \"tfleming-may25-ups\")\n  |> filter(fn: (r) => r.host =~ /^(${host_filter:regex})$/)\n  |> group(columns: [\"host\"])\n  |> last()\n  |> group()\n  |> map(fn: (r) => ({Host: r.host, \"Current (W)\": if r._value - desktopW > 0.0 then r._value - desktopW else 0.0}))\nunion(tables: [nonUps, upsRow])",
+          "query": "desktopW = (from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\" and r.host == \"TFLEMING-MAY25\")\n  |> group()\n  |> last()\n  |> findRecord(fn: (key) => true, idx: 0))._value\nnonUps = from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\" and r.host != \"tfleming-may25-ups\")\n  |> group(columns: [\"host\"])\n  |> last()\n  |> group()\n  |> map(fn: (r) => ({Host: r.host, \"Current (W)\": r._value}))\nupsRow = from(bucket: \"powermon\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\" and r.host == \"tfleming-may25-ups\")\n  |> group(columns: [\"host\"])\n  |> last()\n  |> group()\n  |> map(fn: (r) => ({Host: r.host, \"Current (W)\": if r._value - desktopW > 0.0 then r._value - desktopW else 0.0}))\nunion(tables: [nonUps, upsRow])",
           "datasource": {
             "type": "influxdb",
             "uid": "influxdb"
@@ -512,7 +512,7 @@
         },
         {
           "refId": "B",
-          "query": "desktopE = (from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\" and r.host == \"TFLEMING-MAY25\")\n  |> group(columns: [\"host\", \"_start\", \"_stop\"])\n  |> integral(unit: 1h)\n  |> group()\n  |> findRecord(fn: (key) => true, idx: 0))._value\nnonUps = from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\" and r.host != \"tfleming-may25-ups\")\n  |> filter(fn: (r) => r.host =~ /^(${host_filter:regex})$/)\n  |> group(columns: [\"host\", \"_start\", \"_stop\"])\n  |> integral(unit: 1h)\n  |> group()\n  |> map(fn: (r) => ({Host: r.host, \"Energy (Wh)\": r._value}))\nupsRow = from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\" and r.host == \"tfleming-may25-ups\")\n  |> filter(fn: (r) => r.host =~ /^(${host_filter:regex})$/)\n  |> group(columns: [\"host\", \"_start\", \"_stop\"])\n  |> integral(unit: 1h)\n  |> group()\n  |> map(fn: (r) => ({Host: r.host, \"Energy (Wh)\": if r._value - desktopE > 0.0 then r._value - desktopE else 0.0}))\nunion(tables: [nonUps, upsRow])",
+          "query": "desktopE = (from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\" and r.host == \"TFLEMING-MAY25\")\n  |> group(columns: [\"host\", \"_start\", \"_stop\"])\n  |> integral(unit: 1h)\n  |> group()\n  |> findRecord(fn: (key) => true, idx: 0))._value\nnonUps = from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\" and r.host != \"tfleming-may25-ups\")\n  |> group(columns: [\"host\", \"_start\", \"_stop\"])\n  |> integral(unit: 1h)\n  |> group()\n  |> map(fn: (r) => ({Host: r.host, \"Energy (Wh)\": r._value}))\nupsRow = from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\" and r.host == \"tfleming-may25-ups\")\n  |> group(columns: [\"host\", \"_start\", \"_stop\"])\n  |> integral(unit: 1h)\n  |> group()\n  |> map(fn: (r) => ({Host: r.host, \"Energy (Wh)\": if r._value - desktopE > 0.0 then r._value - desktopE else 0.0}))\nunion(tables: [nonUps, upsRow])",
           "datasource": {
             "type": "influxdb",
             "uid": "influxdb"
@@ -566,7 +566,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"cpu\" and r._field == \"usage_idle\" and r.cpu == \"cpu-total\")\n  |> filter(fn: (r) => r.host =~ /^(${host_filter:regex})$/)\n  |> group(columns: [\"host\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> map(fn: (r) => ({r with _value: 100.0 - r._value}))\n  |> yield(name: \"mean\")",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"cpu\" and r._field == \"usage_idle\" and r.cpu == \"cpu-total\")\n  |> group(columns: [\"host\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> map(fn: (r) => ({r with _value: 100.0 - r._value}))\n  |> yield(name: \"mean\")",
           "datasource": {
             "type": "influxdb",
             "uid": "influxdb"
@@ -620,7 +620,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"mem\" and r._field == \"used_percent\")\n  |> filter(fn: (r) => r.host =~ /^(${host_filter:regex})$/)\n  |> group(columns: [\"host\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"mem\" and r._field == \"used_percent\")\n  |> group(columns: [\"host\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
           "datasource": {
             "type": "influxdb",
             "uid": "influxdb"
@@ -672,7 +672,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"net\" and (r._field == \"bytes_recv\" or r._field == \"bytes_sent\") and r.interface != \"lo\")\n  |> filter(fn: (r) => r.host =~ /^(${host_filter:regex})$/)\n  |> group(columns: [\"host\", \"interface\", \"_field\"])\n  |> derivative(unit: 1s, nonNegative: true)\n  |> group(columns: [\"host\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: sum, createEmpty: false)\n  |> yield(name: \"mean\")",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"net\" and (r._field == \"bytes_recv\" or r._field == \"bytes_sent\") and r.interface != \"lo\")\n  |> group(columns: [\"host\", \"interface\", \"_field\"])\n  |> derivative(unit: 1s, nonNegative: true)\n  |> group(columns: [\"host\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: sum, createEmpty: false)\n  |> yield(name: \"mean\")",
           "datasource": {
             "type": "influxdb",
             "uid": "influxdb"
@@ -743,7 +743,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> filter(fn: (r) => r.host !~ /^(TFLEMING-MAY25)$/)\n  |> filter(fn: (r) => r.host =~ /^(${host_filter:regex})$/)\n  |> group(columns: [\"host\", \"_start\", \"_stop\"])\n  |> integral(unit: 1h)\n  |> group()\n  |> sum()",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> filter(fn: (r) => r.host !~ /^(TFLEMING-MAY25)$/)\n  |> group(columns: [\"host\", \"_start\", \"_stop\"])\n  |> integral(unit: 1h)\n  |> group()\n  |> sum()",
           "datasource": {
             "type": "influxdb",
             "uid": "influxdb"
@@ -814,7 +814,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> filter(fn: (r) => r.host !~ /^(TFLEMING-MAY25)$/)\n  |> filter(fn: (r) => r.host =~ /^(${host_filter:regex})$/)\n  |> group(columns: [\"host\", \"_start\", \"_stop\"])\n  |> integral(unit: 1h)\n  |> map(fn: (r) => ({r with _value: r._value / 1000.0 * 0.19}))\n  |> group()\n  |> sum()",
+          "query": "from(bucket: \"powermon\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"power\" and r._field == \"watts\" and r.domain == \"total\")\n  |> filter(fn: (r) => r.host !~ /^(TFLEMING-MAY25)$/)\n  |> group(columns: [\"host\", \"_start\", \"_stop\"])\n  |> integral(unit: 1h)\n  |> map(fn: (r) => ({r with _value: r._value / 1000.0 * 0.19}))\n  |> group()\n  |> sum()",
           "datasource": {
             "type": "influxdb",
             "uid": "influxdb"
@@ -1084,30 +1084,6 @@
         "refresh": 1,
         "type": "datasource",
         "label": "Data Source"
-      },
-      {
-        "allValue": ".*",
-        "current": {
-          "selected": true,
-          "text": ["All"],
-          "value": ["$__all"]
-        },
-        "datasource": {
-          "type": "influxdb",
-          "uid": "influxdb"
-        },
-        "definition": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"powermon\", tag: \"host\")",
-        "hide": 0,
-        "includeAll": true,
-        "label": "Host",
-        "multi": true,
-        "name": "host_filter",
-        "options": [],
-        "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"powermon\", tag: \"host\")",
-        "refresh": 2,
-        "regex": "",
-        "sort": 1,
-        "type": "query"
       },
       {
         "current": {
