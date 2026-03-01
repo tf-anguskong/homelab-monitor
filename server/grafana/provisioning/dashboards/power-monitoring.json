@@ -1102,10 +1102,7 @@
         "multi": true,
         "name": "host_filter",
         "options": [],
-        "query": {
-          "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"powermon\", tag: \"host\")",
-          "refId": "StandardVariableQuery"
-        },
+        "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"powermon\", tag: \"host\")",
         "refresh": 2,
         "regex": "",
         "sort": 1,
