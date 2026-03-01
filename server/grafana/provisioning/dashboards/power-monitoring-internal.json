@@ -1139,8 +1139,8 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Homelab Power Monitoring - External",
-  "uid": "homelab-power-001",
+  "title": "Homelab Power Monitoring - Internal",
+  "uid": "homelab-power-internal",
   "version": 1,
   "weekStart": ""
 }
