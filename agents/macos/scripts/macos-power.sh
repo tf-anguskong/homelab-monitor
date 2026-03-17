@@ -21,7 +21,7 @@ if echo "$output" | grep -q "Combined Power"; then
     gpu_mw=$(echo "$output"   | awk '/^GPU Power:/     {print $3}')
     ane_mw=$(echo "$output"   | awk '/^ANE Power:/     {print $3}')
     # "Combined Power (CPU + GPU + ANE): NNN mW"
-    total_mw=$(echo "$output" | awk '/^Combined Power/ {print $NF}')
+    total_mw=$(echo "$output" | awk '/^Combined Power/ {print $(NF-1)}')
 
     awk -v cpu="${cpu_mw:-0}" \
         -v gpu="${gpu_mw:-0}" \
@@ -37,7 +37,7 @@ if echo "$output" | grep -q "Combined Power"; then
 elif echo "$output" | grep -q "Intel energy model"; then
     # ── Intel Mac ─────────────────────────────────────────────────────────────
     # "Intel energy model derived package power (eDPP): NN.NN W"
-    pkg_w=$(echo "$output" | awk '/Intel energy model derived package power/ {print $NF}')
+    pkg_w=$(echo "$output" | awk '/Intel energy model derived package power/ {print $(NF-1)}')
 
     awk -v pkg="${pkg_w:-0}" \
     'BEGIN {
